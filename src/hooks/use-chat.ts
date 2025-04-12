@@ -71,70 +71,6 @@ export const useChat = () => {
     }
   };
   
-  const processUserQuery = (userMessage: string): string => {
-    const lowercaseMessage = userMessage.toLowerCase();
-    
-    // Check for medication-related queries
-    if (lowercaseMessage.includes('medication') || lowercaseMessage.includes('medicine') || lowercaseMessage.includes('prescriptions')) {
-      if (medications && medications.length > 0) {
-        const activeMeds = medications.filter(med => med.is_active).map(med => 
-          `${med.name} (${med.dosage || 'no dosage specified'}, ${med.frequency || 'no frequency specified'})`
-        ).join(', ');
-        
-        return `Based on your records, you're currently taking: ${activeMeds}. Always follow your doctor's instructions regarding medications.`;
-      } else {
-        return "I don't see any medications in your records. Would you like to add them in the Medications section?";
-      }
-    }
-    
-    // Check for medical conditions
-    if (lowercaseMessage.includes('condition') || lowercaseMessage.includes('diagnosis') || lowercaseMessage.includes('medical history')) {
-      if (conditions && conditions.length > 0) {
-        const activeConditions = conditions.filter(c => c.is_active).map(c => c.name).join(', ');
-        
-        return `According to your records, you have the following medical conditions: ${activeConditions}. If you need to discuss these conditions further, please consult your healthcare provider.`;
-      } else {
-        return "I don't see any medical conditions in your records. You can add them in the Medical Conditions section.";
-      }
-    }
-    
-    // Check for appointment or visit-related queries
-    if (lowercaseMessage.includes('appointment') || lowercaseMessage.includes('visit') || lowercaseMessage.includes('doctor')) {
-      const doctorVisits = events ? events.filter(event => event.type === 'visit') : [];
-      
-      if (doctorVisits.length > 0) {
-        const latestVisit = doctorVisits[0]; // Assuming events are sorted by date
-        return `Your last doctor's visit was on ${new Date(latestVisit.date).toLocaleDateString()} regarding "${latestVisit.title}". Would you like to schedule a follow-up appointment?`;
-      } else {
-        return "I don't see any recent doctor visits in your records. Would you like information on how to schedule an appointment?";
-      }
-    }
-    
-    // Check for timeline or history-related queries
-    if (lowercaseMessage.includes('timeline') || lowercaseMessage.includes('history') || lowercaseMessage.includes('events')) {
-      if (events && events.length > 0) {
-        const recentEvents = events.slice(0, 3).map(e => 
-          `${new Date(e.date).toLocaleDateString()}: ${e.title} (${e.type})`
-        ).join('\n- ');
-        
-        return `Here are your recent medical events:\n- ${recentEvents}\n\nYou can view your full timeline in the Medical Timeline section.`;
-      } else {
-        return "Your medical timeline is empty. You can add events like doctor visits, lab results, and prescriptions in the Timeline section.";
-      }
-    }
-    
-    // General health advice (fallback)
-    if (lowercaseMessage.includes('headache')) {
-      return "I understand you're experiencing headaches. How long have you been experiencing this symptom? Is it constant or intermittent? On a scale of 1-10, how would you rate the pain?";
-    } else if (lowercaseMessage.includes('symptom')) {
-      return "Thank you for sharing. Could you provide more details about your symptoms? When did they start? Have you noticed any patterns or triggers?";
-    } else if (lowercaseMessage.includes('prevention') || lowercaseMessage.includes('healthy')) {
-      return "Maintaining good health involves regular exercise, a balanced diet, adequate sleep, stress management, and regular check-ups. Would you like specific information about any of these areas?";
-    } else {
-      return "Thank you for your question. To provide accurate information, I'd need more details. Could you be more specific about what health information you're looking for?";
-    }
-  };
-  
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim()) return;
     
@@ -147,17 +83,55 @@ export const useChat = () => {
     
     setIsTyping(true);
     
-    // Process the user's message
-    setTimeout(async () => {
-      const botResponse = processUserQuery(messageText);
-      const botMessage: ChatMessage = { role: 'bot', content: botResponse };
+    try {
+      // Prepare user context for more personalized responses
+      const userContext = {
+        medications: medications || [],
+        conditions: conditions || [],
+        recentEvents: events ? events.slice(0, 5) : []
+      };
+
+      // Call our edge function to get AI response
+      const response = await supabase.functions.invoke('ai-chat', {
+        body: {
+          message: messageText,
+          userId: user?.id,
+          userContext
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      const botMessage: ChatMessage = { 
+        role: 'bot', 
+        content: response.data.content || "I'm sorry, I couldn't process that request."
+      };
       
       setMessages(prev => [...prev, botMessage]);
-      setIsTyping(false);
       
       // Save bot message to database
       await saveMessage(botMessage);
-    }, 1000);
+    } catch (error) {
+      console.error('Error getting AI response:', error);
+      const errorMessage: ChatMessage = { 
+        role: 'bot', 
+        content: "I'm sorry, I encountered an error processing your request. Please try again later." 
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      
+      // Save error message to database
+      await saveMessage(errorMessage);
+      
+      toast({
+        title: "Error",
+        description: "Failed to get response from AI assistant.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsTyping(false);
+    }
   };
   
   const exportChat = () => {
@@ -183,9 +157,18 @@ export const useChat = () => {
   
   const shareWithDoctor = () => {
     // In a real application, this would integrate with email or patient portal
+    const messageContent = messages.map(msg => 
+      `[${msg.role.toUpperCase()}]: ${msg.content}`
+    ).join('\n\n');
+    
+    const subject = "MediFlow AI Chat Transcript";
+    const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(messageContent)}`;
+    
+    window.open(mailtoLink);
+    
     toast({
-      title: "Transcript Shared",
-      description: "Your chat transcript has been shared with your doctor."
+      title: "Ready to Share",
+      description: "Your email client has been opened with the chat transcript."
     });
   };
   
