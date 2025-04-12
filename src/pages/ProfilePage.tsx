@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import PatientProfileForm from '@/components/profile/PatientProfileForm';
 import MedicationCard, { Medication } from '@/components/profile/MedicationCard';
-import { User, FilePlus, Pills, Bell } from 'lucide-react';
+import { User, FilePlus, Pill, Bell } from 'lucide-react';
 
 const ProfilePage = () => {
   // Sample medications data
@@ -75,7 +74,7 @@ const ProfilePage = () => {
               <User className="h-4 w-4 mr-2" /> Personal Info
             </TabsTrigger>
             <TabsTrigger value="medications">
-              <Pills className="h-4 w-4 mr-2" /> Medications
+              <Pill className="h-4 w-4 mr-2" /> Medications
             </TabsTrigger>
             <TabsTrigger value="records">
               <FilePlus className="h-4 w-4 mr-2" /> Medical Records

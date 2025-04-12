@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Calendar, FileText, FilePlus, Pills, AlertTriangle } from 'lucide-react';
+import { Calendar, FileText, FilePlus, Pill, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type TimelineItemType = {
@@ -26,7 +26,7 @@ const TimelineItem: React.FC<TimelineItemProps> = ({ item, isLast = false }) => 
       case 'visit':
         return <Calendar className="h-5 w-5 text-mediblue-500" />;
       case 'medicine':
-        return <Pills className="h-5 w-5 text-secondary" />;
+        return <Pill className="h-5 w-5 text-secondary" />;
       case 'alert':
         return <AlertTriangle className="h-5 w-5 text-medired-500" />;
       default:
