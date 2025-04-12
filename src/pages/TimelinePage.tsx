@@ -1,49 +1,43 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
-import TimelineItem, { TimelineItemType } from '@/components/timeline/TimelineItem';
+import TimelineItem from '@/components/timeline/TimelineItem';
 import { Button } from '@/components/ui/button';
-import { FileText, Download } from 'lucide-react';
+import { FileText, Download, Plus } from 'lucide-react';
+import { useTimeline } from '@/hooks/use-timeline';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Form, FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { format } from 'date-fns';
 
 const TimelinePage = () => {
-  // Sample timeline data
-  const timelineItems: TimelineItemType[] = [
-    {
-      id: '1',
-      date: 'April 10, 2025',
-      title: 'Prescription for Hypertension',
-      description: 'Dr. Johnson prescribed Lisinopril 10mg once daily for blood pressure management.',
-      type: 'prescription'
-    },
-    {
-      id: '2',
-      date: 'April 5, 2025',
-      title: 'Blood Work Results',
-      description: 'Complete blood count and metabolic panel results received. All values within normal range except slightly elevated cholesterol.',
-      type: 'lab'
-    },
-    {
-      id: '3',
-      date: 'April 2, 2025',
-      title: 'Appointment with Dr. Johnson',
-      description: 'Regular check-up appointment. Blood pressure reading was 140/90. Doctor recommended diet modifications and exercise.',
-      type: 'visit'
-    },
-    {
-      id: '4',
-      date: 'March 25, 2025',
-      title: 'Medication Alert',
-      description: 'Your prescription for Metformin is running low. Please refill within the next 5 days.',
-      type: 'alert'
-    },
-    {
-      id: '5',
-      date: 'March 15, 2025',
-      title: 'New Medication Added',
-      description: 'Started Vitamin D supplement 1000 IU daily as recommended by Dr. Johnson.',
-      type: 'medicine'
-    },
-  ];
+  const { events, loading, addEvent } = useTimeline();
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    description: '',
+    type: 'visit',
+    date: format(new Date(), 'yyyy-MM-dd'),
+  });
+
+  const handleAddEvent = (e: React.FormEvent) => {
+    e.preventDefault();
+    addEvent({
+      title: newEvent.title,
+      description: newEvent.description,
+      type: newEvent.type as any,
+      date: new Date(newEvent.date).toISOString(),
+      related_file_url: null,
+    });
+    setShowAddDialog(false);
+    setNewEvent({
+      title: '',
+      description: '',
+      type: 'visit',
+      date: format(new Date(), 'yyyy-MM-dd'),
+    });
+  };
 
   return (
     <MainLayout>
@@ -55,31 +49,118 @@ const TimelinePage = () => {
               <FileText className="h-4 w-4 mr-2" />
               Export Report
             </Button>
-            <Button size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Download All
-            </Button>
+            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Event
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Add New Medical Event</DialogTitle>
+                </DialogHeader>
+                <div className="py-4">
+                  <form onSubmit={handleAddEvent}>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label htmlFor="event-title" className="text-sm font-medium">Event Title</label>
+                        <Input 
+                          id="event-title" 
+                          placeholder="e.g. Appointment with Dr. Smith"
+                          value={newEvent.title}
+                          onChange={(e) => setNewEvent({...newEvent, title: e.target.value})}
+                          required
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label htmlFor="event-date" className="text-sm font-medium">Date</label>
+                        <Input 
+                          id="event-date" 
+                          type="date"
+                          value={newEvent.date}
+                          onChange={(e) => setNewEvent({...newEvent, date: e.target.value})}
+                          required
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label htmlFor="event-type" className="text-sm font-medium">Event Type</label>
+                        <select 
+                          id="event-type"
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                          value={newEvent.type}
+                          onChange={(e) => setNewEvent({...newEvent, type: e.target.value})}
+                          required
+                        >
+                          <option value="visit">Doctor Visit</option>
+                          <option value="prescription">Prescription</option>
+                          <option value="lab">Lab Result</option>
+                          <option value="medicine">Medication</option>
+                          <option value="alert">Alert</option>
+                        </select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label htmlFor="event-description" className="text-sm font-medium">Description</label>
+                        <Textarea 
+                          id="event-description"
+                          placeholder="Add details about this event"
+                          value={newEvent.description}
+                          onChange={(e) => setNewEvent({...newEvent, description: e.target.value})}
+                        />
+                      </div>
+                      
+                      <div className="flex justify-end">
+                        <Button type="submit">Add to Timeline</Button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
-        {/* Medical alert banner */}
-        <div className="medical-alert mb-6">
-          <h3 className="font-semibold">Important Health Alert</h3>
-          <p>Your prescription for Metformin is running low. Please refill within the next 5 days.</p>
-        </div>
+        {events && events.some(event => event.type === 'alert') && (
+          <div className="bg-medired-50 border-l-4 border-medired-500 p-4 mb-6 rounded-md">
+            <h3 className="font-semibold">Important Health Alert</h3>
+            <p>{events.find(event => event.type === 'alert')?.description || 'You have an important health alert.'}</p>
+          </div>
+        )}
 
         {/* Timeline */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
           <h2 className="text-lg font-medium mb-6">Your Health Events</h2>
-          <div className="space-y-0">
-            {timelineItems.map((item, index) => (
-              <TimelineItem 
-                key={item.id} 
-                item={item} 
-                isLast={index === timelineItems.length - 1}
-              />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mediblue-600"></div>
+            </div>
+          ) : events && events.length > 0 ? (
+            <div className="space-y-0">
+              {events.map((item, index) => (
+                <TimelineItem 
+                  key={item.id} 
+                  item={{
+                    id: item.id,
+                    date: format(new Date(item.date), 'MMMM d, yyyy'),
+                    title: item.title,
+                    description: item.description || '',
+                    type: item.type
+                  }} 
+                  isLast={index === events.length - 1}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-blue-50 p-6 rounded-md text-center">
+              <p className="text-gray-600">You don't have any medical events recorded yet.</p>
+              <Button className="mt-2" variant="outline" onClick={() => setShowAddDialog(true)}>
+                Add Your First Event
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>

@@ -1,52 +1,57 @@
+
 import React, { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
-import PatientProfileForm from '@/components/profile/PatientProfileForm';
-import MedicationCard, { Medication } from '@/components/profile/MedicationCard';
-import { User, FilePlus, Pill, Bell } from 'lucide-react';
+import MedicationCard from '@/components/profile/MedicationCard';
+import { useProfile } from '@/hooks/use-profile';
+import { useMedications } from '@/hooks/use-medications';
+import { useMedicalConditions } from '@/hooks/use-medical-conditions';
+import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Form, FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
+import { User, FilePlus, Pill, Bell, Calendar, Clock, Plus } from 'lucide-react';
 
 const ProfilePage = () => {
-  // Sample medications data
-  const medications: Medication[] = [
-    {
-      id: '1',
-      name: 'Lisinopril',
-      dosage: '10mg',
-      frequency: 'Once daily in the morning',
-      startDate: 'April 10, 2025',
-      instructions: 'Take with food. Monitor blood pressure regularly.',
-      isActive: true,
-    },
-    {
-      id: '2',
-      name: 'Metformin',
-      dosage: '500mg',
-      frequency: 'Twice daily with meals',
-      startDate: 'January 15, 2025',
-      instructions: 'Take with breakfast and dinner.',
-      isActive: true,
-    },
-    {
-      id: '3',
-      name: 'Vitamin D',
-      dosage: '1000 IU',
-      frequency: 'Once daily',
-      startDate: 'March 15, 2025',
-      instructions: 'Take with a meal containing fat for better absorption.',
-      isActive: true,
-    },
-    {
-      id: '4',
-      name: 'Amoxicillin',
-      dosage: '500mg',
-      frequency: 'Three times daily',
-      startDate: 'February 1, 2025',
-      endDate: 'February 10, 2025',
-      instructions: 'Completed full course for sinus infection.',
-      isActive: false,
-    },
-  ];
+  const { profile, loading: profileLoading, updateProfile } = useProfile();
+  const { medications, loading: medicationsLoading } = useMedications();
+  const { user } = useAuth();
+
+  const [firstName, setFirstName] = useState(profile?.first_name || '');
+  const [lastName, setLastName] = useState(profile?.last_name || '');
+  const [email, setEmail] = useState(profile?.email || user?.email || '');
+  const [phone, setPhone] = useState(profile?.phone || '');
+  const [dateOfBirth, setDateOfBirth] = useState(profile?.date_of_birth || '');
+  const [gender, setGender] = useState(profile?.gender || '');
+  const [conditions, setConditions] = useState('');
+  const [allergies, setAllergies] = useState('');
+
+  // Update state when profile data is loaded
+  React.useEffect(() => {
+    if (profile) {
+      setFirstName(profile.first_name || '');
+      setLastName(profile.last_name || '');
+      setEmail(profile.email || user?.email || '');
+      setPhone(profile.phone || '');
+      setDateOfBirth(profile.date_of_birth || '');
+      setGender(profile.gender || '');
+    }
+  }, [profile, user]);
+
+  const handleProfileSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfile({
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      date_of_birth: dateOfBirth,
+      gender,
+    });
+  };
 
   return (
     <MainLayout>
@@ -58,14 +63,15 @@ const ProfilePage = () => {
           </p>
         </div>
 
-        {/* Medical alert banner */}
-        <div className="medical-alert mb-6">
-          <div className="flex items-center">
-            <Bell className="h-5 w-5 mr-2 text-medired-600" />
-            <h3 className="font-semibold">Medication Alert</h3>
+        {medications && medications.length > 0 && medications.some(med => med.is_active && new Date(med.end_date || '') <= new Date(new Date().getTime() + 5 * 24 * 60 * 60 * 1000)) && (
+          <div className="bg-medired-50 border-l-4 border-medired-500 p-4 mb-6 rounded-md">
+            <div className="flex items-center">
+              <Bell className="h-5 w-5 mr-2 text-medired-600" />
+              <h3 className="font-semibold">Medication Alert</h3>
+            </div>
+            <p>You have medications that need refilling soon. Check your active medications.</p>
           </div>
-          <p>Your Metformin prescription will need refilling in 5 days. Contact your healthcare provider.</p>
-        </div>
+        )}
 
         {/* Patient Profile Tabs */}
         <Tabs defaultValue="personal">
@@ -85,7 +91,107 @@ const ProfilePage = () => {
           <TabsContent value="personal">
             <Card>
               <CardContent className="pt-6">
-                <PatientProfileForm />
+                {profileLoading ? (
+                  <div className="flex justify-center py-10">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mediblue-600"></div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleProfileSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label htmlFor="firstName" className="text-sm font-medium text-gray-700">First Name</label>
+                        <Input 
+                          id="firstName" 
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="lastName" className="text-sm font-medium text-gray-700">Last Name</label>
+                        <Input 
+                          id="lastName" 
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="email" className="text-sm font-medium text-gray-700">Email</label>
+                        <Input 
+                          id="email" 
+                          type="email" 
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="phone" className="text-sm font-medium text-gray-700">Phone Number</label>
+                        <Input 
+                          id="phone" 
+                          type="tel" 
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="dob" className="text-sm font-medium text-gray-700">Date of Birth</label>
+                        <Input 
+                          id="dob" 
+                          type="date" 
+                          value={dateOfBirth}
+                          onChange={(e) => setDateOfBirth(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="gender" className="text-sm font-medium text-gray-700">Gender</label>
+                        <select 
+                          id="gender" 
+                          value={gender}
+                          onChange={(e) => setGender(e.target.value)}
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                          <option value="">Select gender</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                          <option value="other">Other</option>
+                          <option value="prefer-not-to-say">Prefer not to say</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h3 className="text-md font-medium text-gray-900">Medical Information</h3>
+                      <div className="medical-info">
+                        <p className="text-sm">
+                          This information is critical for your healthcare providers. Please ensure it's accurate and up-to-date.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="conditions" className="text-sm font-medium text-gray-700">Existing Conditions</label>
+                      <Textarea 
+                        id="conditions" 
+                        value={conditions}
+                        onChange={(e) => setConditions(e.target.value)}
+                        placeholder="Type 2 Diabetes (diagnosed 2018), Hypertension (diagnosed 2015)"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="allergies" className="text-sm font-medium text-gray-700">Allergies</label>
+                      <Textarea 
+                        id="allergies" 
+                        value={allergies}
+                        onChange={(e) => setAllergies(e.target.value)}
+                        placeholder="Penicillin, Sulfa drugs"
+                      />
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button type="submit">Save Profile</Button>
+                    </div>
+                  </form>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -94,12 +200,109 @@ const ProfilePage = () => {
           <TabsContent value="medications">
             <Card>
               <CardContent className="pt-6">
-                <h2 className="text-lg font-medium mb-4">Current and Past Medications</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  {medications.map((medication) => (
-                    <MedicationCard key={medication.id} medication={medication} />
-                  ))}
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-medium">Current and Past Medications</h2>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" /> Add Medication
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[500px]">
+                      <DialogHeader>
+                        <DialogTitle>Add New Medication</DialogTitle>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <Form>
+                          <div className="space-y-4">
+                            <FormField name="name">
+                              <FormItem>
+                                <FormLabel>Medication Name</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Enter medication name" />
+                                </FormControl>
+                              </FormItem>
+                            </FormField>
+                            <FormField name="dosage">
+                              <FormItem>
+                                <FormLabel>Dosage</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="e.g. 10mg, 500mg" />
+                                </FormControl>
+                              </FormItem>
+                            </FormField>
+                            <div className="grid grid-cols-2 gap-4">
+                              <FormField name="startDate">
+                                <FormItem>
+                                  <FormLabel>Start Date</FormLabel>
+                                  <FormControl>
+                                    <Input type="date" />
+                                  </FormControl>
+                                </FormItem>
+                              </FormField>
+                              <FormField name="endDate">
+                                <FormItem>
+                                  <FormLabel>End Date (if applicable)</FormLabel>
+                                  <FormControl>
+                                    <Input type="date" />
+                                  </FormControl>
+                                </FormItem>
+                              </FormField>
+                            </div>
+                            <FormField name="frequency">
+                              <FormItem>
+                                <FormLabel>Frequency</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="e.g. Once daily, Twice daily with meals" />
+                                </FormControl>
+                              </FormItem>
+                            </FormField>
+                            <FormField name="instructions">
+                              <FormItem>
+                                <FormLabel>Instructions</FormLabel>
+                                <FormControl>
+                                  <Textarea placeholder="Additional instructions or notes" />
+                                </FormControl>
+                              </FormItem>
+                            </FormField>
+                            <div className="flex justify-end">
+                              <Button>Add Medication</Button>
+                            </div>
+                          </div>
+                        </Form>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
+                
+                {medicationsLoading ? (
+                  <div className="flex justify-center py-10">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mediblue-600"></div>
+                  </div>
+                ) : medications && medications.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    {medications.map((medication) => (
+                      <MedicationCard 
+                        key={medication.id} 
+                        medication={{
+                          id: medication.id,
+                          name: medication.name,
+                          dosage: medication.dosage || '',
+                          frequency: medication.frequency || '',
+                          startDate: medication.start_date || '',
+                          endDate: medication.end_date || undefined,
+                          instructions: medication.instructions || '',
+                          isActive: medication.is_active,
+                        }} 
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-blue-50 p-6 rounded-md mt-4 text-center">
+                    <p className="text-gray-600">You don't have any medications recorded yet.</p>
+                    <Button className="mt-2" variant="outline">Add Your First Medication</Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -108,14 +311,18 @@ const ProfilePage = () => {
           <TabsContent value="records">
             <Card>
               <CardContent className="pt-6">
-                <h2 className="text-lg font-medium mb-4">Medical Records</h2>
-                <p className="text-gray-600">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-medium">Medical Records</h2>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" /> Upload Record
+                  </Button>
+                </div>
+                <p className="text-gray-600 mb-4">
                   You can view and download your medical records here. Records are encrypted and HIPAA-compliant.
                 </p>
-                <div className="bg-blue-50 p-4 rounded-md mt-4">
-                  <p className="text-sm text-center text-gray-600">
-                    No medical records have been uploaded yet.
-                  </p>
+                <div className="bg-blue-50 p-6 rounded-md mt-4 text-center">
+                  <p className="text-gray-600">No medical records have been uploaded yet.</p>
+                  <Button className="mt-2" variant="outline">Upload Your First Record</Button>
                 </div>
               </CardContent>
             </Card>
