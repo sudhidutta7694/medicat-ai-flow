@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
 import MainLayout from '@/components/layout/MainLayout';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,7 +18,7 @@ import { User, FilePlus, Pill, Bell, Calendar, Clock, Plus } from 'lucide-react'
 
 const ProfilePage = () => {
   const { profile, loading: profileLoading, updateProfile } = useProfile();
-  const { medications, loading: medicationsLoading } = useMedications();
+  const { medications, loading: medicationsLoading, addMedication } = useMedications();
   const { user } = useAuth();
 
   const [firstName, setFirstName] = useState(profile?.first_name || '');
@@ -28,9 +29,21 @@ const ProfilePage = () => {
   const [gender, setGender] = useState(profile?.gender || '');
   const [conditions, setConditions] = useState('');
   const [allergies, setAllergies] = useState('');
+  
+  // Form for adding new medication
+  const medicationForm = useForm({
+    defaultValues: {
+      name: '',
+      dosage: '',
+      frequency: '',
+      startDate: '',
+      endDate: '',
+      instructions: '',
+    }
+  });
 
   // Update state when profile data is loaded
-  React.useEffect(() => {
+  useEffect(() => {
     if (profile) {
       setFirstName(profile.first_name || '');
       setLastName(profile.last_name || '');
@@ -50,6 +63,18 @@ const ProfilePage = () => {
       phone,
       date_of_birth: dateOfBirth,
       gender,
+    });
+  };
+  
+  const handleAddMedication = (data: any) => {
+    addMedication({
+      name: data.name,
+      dosage: data.dosage,
+      frequency: data.frequency,
+      start_date: data.startDate,
+      end_date: data.endDate || null,
+      instructions: data.instructions,
+      is_active: true,
     });
   };
 
@@ -213,62 +238,86 @@ const ProfilePage = () => {
                         <DialogTitle>Add New Medication</DialogTitle>
                       </DialogHeader>
                       <div className="py-4">
-                        <Form>
-                          <div className="space-y-4">
-                            <FormField name="name">
-                              <FormItem>
-                                <FormLabel>Medication Name</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Enter medication name" />
-                                </FormControl>
-                              </FormItem>
-                            </FormField>
-                            <FormField name="dosage">
-                              <FormItem>
-                                <FormLabel>Dosage</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="e.g. 10mg, 500mg" />
-                                </FormControl>
-                              </FormItem>
-                            </FormField>
+                        <Form {...medicationForm}>
+                          <form onSubmit={medicationForm.handleSubmit(handleAddMedication)} className="space-y-4">
+                            <FormField
+                              control={medicationForm.control}
+                              name="name"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Medication Name</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Enter medication name" {...field} />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={medicationForm.control}
+                              name="dosage"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Dosage</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="e.g. 10mg, 500mg" {...field} />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
                             <div className="grid grid-cols-2 gap-4">
-                              <FormField name="startDate">
-                                <FormItem>
-                                  <FormLabel>Start Date</FormLabel>
-                                  <FormControl>
-                                    <Input type="date" />
-                                  </FormControl>
-                                </FormItem>
-                              </FormField>
-                              <FormField name="endDate">
-                                <FormItem>
-                                  <FormLabel>End Date (if applicable)</FormLabel>
-                                  <FormControl>
-                                    <Input type="date" />
-                                  </FormControl>
-                                </FormItem>
-                              </FormField>
+                              <FormField
+                                control={medicationForm.control}
+                                name="startDate"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Start Date</FormLabel>
+                                    <FormControl>
+                                      <Input type="date" {...field} />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={medicationForm.control}
+                                name="endDate"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>End Date (if applicable)</FormLabel>
+                                    <FormControl>
+                                      <Input type="date" {...field} />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
                             </div>
-                            <FormField name="frequency">
-                              <FormItem>
-                                <FormLabel>Frequency</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="e.g. Once daily, Twice daily with meals" />
-                                </FormControl>
-                              </FormItem>
-                            </FormField>
-                            <FormField name="instructions">
-                              <FormItem>
-                                <FormLabel>Instructions</FormLabel>
-                                <FormControl>
-                                  <Textarea placeholder="Additional instructions or notes" />
-                                </FormControl>
-                              </FormItem>
-                            </FormField>
+                            <FormField
+                              control={medicationForm.control}
+                              name="frequency"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Frequency</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="e.g. Once daily, Twice daily with meals" {...field} />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={medicationForm.control}
+                              name="instructions"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Instructions</FormLabel>
+                                  <FormControl>
+                                    <Textarea placeholder="Additional instructions or notes" {...field} />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
                             <div className="flex justify-end">
-                              <Button>Add Medication</Button>
+                              <Button type="submit">Add Medication</Button>
                             </div>
-                          </div>
+                          </form>
                         </Form>
                       </div>
                     </DialogContent>

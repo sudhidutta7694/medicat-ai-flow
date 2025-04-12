@@ -32,7 +32,14 @@ export const useTimeline = () => {
         .order('date', { ascending: false });
 
       if (error) throw error;
-      setEvents(data || []);
+      
+      // Cast the data to ensure it matches the MedicalEvent type
+      const typedData = data?.map(event => ({
+        ...event,
+        type: event.type as 'prescription' | 'lab' | 'visit' | 'medicine' | 'alert'
+      })) || [];
+      
+      setEvents(typedData);
     } catch (error: any) {
       console.error('Error fetching medical events:', error);
     } finally {
