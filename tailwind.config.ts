@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +62,43 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				mediblue: {
+					50: '#E6F7FF',
+					100: '#BAE7FF',
+					200: '#91D5FF',
+					300: '#69C0FF',
+					400: '#40A9FF',
+					500: '#1890FF',
+					600: '#096DD9',
+					700: '#0050B3',
+					800: '#003A8C',
+					900: '#002766',
+				},
+				medired: {
+					50: '#FFF1F0',
+					100: '#FFCCC7',
+					200: '#FFA39E',
+					300: '#FF7875',
+					400: '#FF4D4F',
+					500: '#F5222D',
+					600: '#CF1322',
+					700: '#A8071A',
+					800: '#820014',
+					900: '#5C0011',
+				},
+				medigreen: {
+					50: '#F6FFED',
+					100: '#D9F7BE',
+					200: '#B7EB8F',
+					300: '#95DE64',
+					400: '#73D13D',
+					500: '#52C41A',
+					600: '#389E0D',
+					700: '#237804',
+					800: '#135200',
+					900: '#092B00',
+				},
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -84,11 +121,16 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'pulse-gentle': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.8' },
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse-gentle': 'pulse-gentle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
 			}
 		}
 	},
