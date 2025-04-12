@@ -1,53 +1,22 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, Mic, PaperclipIcon, Share, Loader2 } from 'lucide-react';
+import { Send, Mic, PaperclipIcon, Share, Download, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useChat } from '@/hooks/use-chat';
 
 const ChatPage = () => {
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([
-    { role: 'bot', content: "Hello! I'm your MediFlow AI assistant. How can I help you today? I can help assess your symptoms, provide information about medications, or prepare for your doctor's appointment." },
-  ]);
-  const [isTyping, setIsTyping] = useState(false);
-  const messagesEndRef = React.useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { messages, isTyping, sendMessage, exportChat, shareWithDoctor } = useChat();
 
   const handleSendMessage = () => {
     if (!message.trim()) return;
-    
-    // Add user message
-    setMessages(prev => [...prev, { role: 'user', content: message }]);
+    sendMessage(message);
     setMessage('');
-    setIsTyping(true);
-    
-    // Simulate AI response
-    setTimeout(() => {
-      setIsTyping(false);
-      setMessages(prev => [
-        ...prev, 
-        { 
-          role: 'bot', 
-          content: simulateResponse(prev[prev.length - 1].content) 
-        }
-      ]);
-    }, 1500);
-  };
-
-  const simulateResponse = (userMessage: string) => {
-    // Very simplified simulation of AI responses
-    if (userMessage.toLowerCase().includes('headache')) {
-      return "I understand you're experiencing headaches. How long have you been experiencing this symptom? Is it constant or intermittent? On a scale of 1-10, how would you rate the pain?";
-    } else if (userMessage.toLowerCase().includes('medication') || userMessage.toLowerCase().includes('medicine')) {
-      return "To provide accurate information about medications, I'll need more details. What specific medication are you asking about? Are you currently taking any medications?";
-    } else if (userMessage.toLowerCase().includes('appointment')) {
-      return "I can help prepare information for your doctor's appointment. When is your appointment scheduled? What specific concerns would you like to discuss with your doctor?";
-    } else {
-      return "Thank you for sharing. Could you provide more details about your symptoms? When did they start? Have you noticed any patterns or triggers?";
-    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -57,15 +26,8 @@ const ChatPage = () => {
     }
   };
 
-  const shareTranscript = () => {
-    toast({
-      title: "Transcript Shared",
-      description: "Your chat transcript has been shared with your doctor.",
-    });
-  };
-
   // Scroll to bottom whenever messages change
-  React.useEffect(() => {
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -74,14 +36,20 @@ const ChatPage = () => {
       <div className="mediflow-container py-6 flex flex-col h-[calc(100vh-180px)]">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-gray-900">AI Health Assistant</h1>
-          <Button variant="outline" size="sm" onClick={shareTranscript}>
-            <Share className="h-4 w-4 mr-2" />
-            Share with Doctor
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={shareWithDoctor}>
+              <Share className="h-4 w-4 mr-2" />
+              Share with Doctor
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportChat}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Chat
+            </Button>
+          </div>
         </div>
         
         {/* Chat medical info alert */}
-        <div className="medical-info mb-4">
+        <div className="medical-info mb-4 bg-blue-50 p-3 rounded-md border border-blue-100">
           <h3 className="font-medium">Important Notice</h3>
           <p className="text-sm">
             This AI assistant provides general health information and is not a substitute for professional medical advice. 
@@ -108,7 +76,12 @@ const ChatPage = () => {
                       : "bg-white border border-gray-200 rounded-bl-none"
                   )}
                 >
-                  {msg.content}
+                  {msg.content.split('\n').map((line, i) => (
+                    <React.Fragment key={i}>
+                      {line}
+                      {i < msg.content.split('\n').length - 1 && <br />}
+                    </React.Fragment>
+                  ))}
                 </div>
               </div>
             ))}

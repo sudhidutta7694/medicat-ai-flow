@@ -3,13 +3,14 @@ import React, { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import TimelineItem from '@/components/timeline/TimelineItem';
 import { Button } from '@/components/ui/button';
-import { FileText, Download, Plus } from 'lucide-react';
+import { FileText, Download, Plus, FilePlus } from 'lucide-react';
 import { useTimeline } from '@/hooks/use-timeline';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 const TimelinePage = () => {
   const { events, loading, addEvent } = useTimeline();
@@ -20,6 +21,7 @@ const TimelinePage = () => {
     type: 'visit',
     date: format(new Date(), 'yyyy-MM-dd'),
   });
+  const { toast } = useToast();
 
   const handleAddEvent = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +40,54 @@ const TimelinePage = () => {
       date: format(new Date(), 'yyyy-MM-dd'),
     });
   };
+  
+  const exportMedicalRecords = () => {
+    if (!events || events.length === 0) {
+      toast({
+        title: "No Records to Export",
+        description: "There are no medical records to export.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Format data for export
+    const formattedEvents = events.map(event => ({
+      date: format(new Date(event.date), 'MMMM d, yyyy'),
+      title: event.title,
+      description: event.description || 'No description provided',
+      type: event.type
+    }));
+    
+    // Create CSV content
+    const headers = ["Date", "Type", "Title", "Description"];
+    const csvContent = [
+      headers.join(','),
+      ...formattedEvents.map(event => 
+        [
+          `"${event.date}"`, 
+          `"${event.type}"`, 
+          `"${event.title}"`,
+          `"${event.description}"`
+        ].join(',')
+      )
+    ].join('\n');
+    
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `MediFlow_Medical_Records_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Export Successful",
+      description: "Your medical records have been exported successfully."
+    });
+  };
 
   return (
     <MainLayout>
@@ -45,9 +95,9 @@ const TimelinePage = () => {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Medical Timeline</h1>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={exportMedicalRecords}>
               <FileText className="h-4 w-4 mr-2" />
-              Export Report
+              Export Records
             </Button>
             <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
               <DialogTrigger asChild>
@@ -112,7 +162,14 @@ const TimelinePage = () => {
                         />
                       </div>
                       
-                      <div className="flex justify-end">
+                      <div className="flex justify-between">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setShowAddDialog(false)}
+                        >
+                          Cancel
+                        </Button>
                         <Button type="submit">Add to Timeline</Button>
                       </div>
                     </div>
