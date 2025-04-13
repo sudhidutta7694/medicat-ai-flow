@@ -98,16 +98,18 @@ const AppointmentPage = () => {
         if (doctorsError) throw doctorsError;
         
         // Transform doctor data for display
-        const processedDoctors = doctorsData.map((doctor) => ({
-          ...doctor,
-          fullName: `Dr. ${doctor.profiles?.first_name || 'Unknown'} ${doctor.profiles?.last_name || ''} (${doctor.specialty})`,
-          profiles: doctor.profiles || { first_name: 'Unknown', last_name: '' }
-        }));
+        const processedDoctors = doctorsData.map((doctor: any) => {
+          return {
+            ...doctor,
+            fullName: `Dr. ${doctor.profiles?.first_name || 'Unknown'} ${doctor.profiles?.last_name || ''} (${doctor.specialty})`,
+            profiles: doctor.profiles || { first_name: 'Unknown', last_name: '' }
+          };
+        });
         
         setDoctors(processedDoctors);
         
         // Extract unique specialties for the filter
-        const uniqueSpecialties = [...new Set(processedDoctors.map(doctor => doctor.specialty))];
+        const uniqueSpecialties = [...new Set(processedDoctors.map((doctor: any) => doctor.specialty))];
         setSpecialties(uniqueSpecialties);
         
         // Fetch user's existing appointments and doctor information separately
@@ -186,7 +188,7 @@ const AppointmentPage = () => {
       }
 
       // Get day of week from selected date
-      const dayOfWeek = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'lowercase' });
+      const dayOfWeek = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
       const workingHours = selectedDoctor.working_hours[dayOfWeek];
       
       if (!workingHours || workingHours.length === 0) {
