@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Link, useLocation, Navigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 const AuthPage = () => {
   const { signIn, signUp, isAuthenticated, loading } = useAuth();
@@ -18,6 +20,7 @@ const AuthPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [userType, setUserType] = useState('patient');
   const [error, setError] = useState('');
 
   // Redirect if already authenticated
@@ -46,7 +49,7 @@ const AuthPage = () => {
       return;
     }
 
-    await signUp(registerEmail, registerPassword, { firstName, lastName });
+    await signUp(registerEmail, registerPassword, { firstName, lastName, userType });
   };
 
   return (
@@ -172,6 +175,25 @@ const AuthPage = () => {
                       onChange={(e) => setConfirmPassword(e.target.value)} 
                       required 
                     />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Account Type</label>
+                    <RadioGroup 
+                      defaultValue="patient"
+                      value={userType}
+                      onValueChange={(value) => setUserType(value)}
+                      className="flex flex-col space-y-1"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="patient" id="patient" />
+                        <Label htmlFor="patient">Patient</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="doctor" id="doctor" />
+                        <Label htmlFor="doctor">Healthcare Provider</Label>
+                      </div>
+                    </RadioGroup>
                   </div>
                   
                   {error && (

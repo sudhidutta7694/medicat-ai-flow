@@ -14,12 +14,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
+import PatientReports from '@/components/patient/PatientReports';
 import { User, FilePlus, Pill, Bell, Calendar, Clock, Plus } from 'lucide-react';
 
 const ProfilePage = () => {
   const { profile, loading: profileLoading, updateProfile } = useProfile();
   const { medications, loading: medicationsLoading, addMedication } = useMedications();
-  const { user } = useAuth();
+  const { user, isDoctor } = useAuth();
 
   const [firstName, setFirstName] = useState(profile?.first_name || '');
   const [lastName, setLastName] = useState(profile?.last_name || '');
@@ -100,16 +101,36 @@ const ProfilePage = () => {
 
         {/* Patient Profile Tabs */}
         <Tabs defaultValue="personal">
-          <TabsList className="grid grid-cols-3 mb-6">
+          <TabsList className="grid grid-cols-4 mb-6">
             <TabsTrigger value="personal">
               <User className="h-4 w-4 mr-2" /> Personal Info
             </TabsTrigger>
-            <TabsTrigger value="medications">
-              <Pill className="h-4 w-4 mr-2" /> Medications
-            </TabsTrigger>
-            <TabsTrigger value="records">
-              <FilePlus className="h-4 w-4 mr-2" /> Medical Records
-            </TabsTrigger>
+            {!isDoctor && (
+              <>
+                <TabsTrigger value="medications">
+                  <Pill className="h-4 w-4 mr-2" /> Medications
+                </TabsTrigger>
+                <TabsTrigger value="records">
+                  <FilePlus className="h-4 w-4 mr-2" /> Medical Records
+                </TabsTrigger>
+                <TabsTrigger value="reports">
+                  <FilePlus className="h-4 w-4 mr-2" /> Reports
+                </TabsTrigger>
+              </>
+            )}
+            {isDoctor && (
+              <>
+                <TabsTrigger value="specialties">
+                  <FilePlus className="h-4 w-4 mr-2" /> Specialties
+                </TabsTrigger>
+                <TabsTrigger value="availability">
+                  <Calendar className="h-4 w-4 mr-2" /> Availability
+                </TabsTrigger>
+                <TabsTrigger value="credentials">
+                  <FilePlus className="h-4 w-4 mr-2" /> Credentials
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           {/* Personal Info Tab */}
@@ -183,34 +204,38 @@ const ProfilePage = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <h3 className="text-md font-medium text-gray-900">Medical Information</h3>
-                      <div className="medical-info">
-                        <p className="text-sm">
-                          This information is critical for your healthcare providers. Please ensure it's accurate and up-to-date.
-                        </p>
-                      </div>
-                    </div>
+                    {!isDoctor && (
+                      <>
+                        <div className="space-y-2">
+                          <h3 className="text-md font-medium text-gray-900">Medical Information</h3>
+                          <div className="medical-info">
+                            <p className="text-sm">
+                              This information is critical for your healthcare providers. Please ensure it's accurate and up-to-date.
+                            </p>
+                          </div>
+                        </div>
 
-                    <div className="space-y-2">
-                      <label htmlFor="conditions" className="text-sm font-medium text-gray-700">Existing Conditions</label>
-                      <Textarea 
-                        id="conditions" 
-                        value={conditions}
-                        onChange={(e) => setConditions(e.target.value)}
-                        placeholder="Type 2 Diabetes (diagnosed 2018), Hypertension (diagnosed 2015)"
-                      />
-                    </div>
+                        <div className="space-y-2">
+                          <label htmlFor="conditions" className="text-sm font-medium text-gray-700">Existing Conditions</label>
+                          <Textarea 
+                            id="conditions" 
+                            value={conditions}
+                            onChange={(e) => setConditions(e.target.value)}
+                            placeholder="Type 2 Diabetes (diagnosed 2018), Hypertension (diagnosed 2015)"
+                          />
+                        </div>
 
-                    <div className="space-y-2">
-                      <label htmlFor="allergies" className="text-sm font-medium text-gray-700">Allergies</label>
-                      <Textarea 
-                        id="allergies" 
-                        value={allergies}
-                        onChange={(e) => setAllergies(e.target.value)}
-                        placeholder="Penicillin, Sulfa drugs"
-                      />
-                    </div>
+                        <div className="space-y-2">
+                          <label htmlFor="allergies" className="text-sm font-medium text-gray-700">Allergies</label>
+                          <Textarea 
+                            id="allergies" 
+                            value={allergies}
+                            onChange={(e) => setAllergies(e.target.value)}
+                            placeholder="Penicillin, Sulfa drugs"
+                          />
+                        </div>
+                      </>
+                    )}
 
                     <div className="flex justify-end">
                       <Button type="submit">Save Profile</Button>
@@ -221,161 +246,227 @@ const ProfilePage = () => {
             </Card>
           </TabsContent>
 
-          {/* Medications Tab */}
-          <TabsContent value="medications">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-medium">Current and Past Medications</h2>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" /> Add Medication
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
-                      <DialogHeader>
-                        <DialogTitle>Add New Medication</DialogTitle>
-                      </DialogHeader>
-                      <div className="py-4">
-                        <Form {...medicationForm}>
-                          <form onSubmit={medicationForm.handleSubmit(handleAddMedication)} className="space-y-4">
-                            <FormField
-                              control={medicationForm.control}
-                              name="name"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Medication Name</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="Enter medication name" {...field} />
-                                  </FormControl>
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={medicationForm.control}
-                              name="dosage"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Dosage</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="e.g. 10mg, 500mg" {...field} />
-                                  </FormControl>
-                                </FormItem>
-                              )}
-                            />
-                            <div className="grid grid-cols-2 gap-4">
+          {/* Medications Tab - Only for patients */}
+          {!isDoctor && (
+            <TabsContent value="medications">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-medium">Current and Past Medications</h2>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button>
+                          <Plus className="h-4 w-4 mr-2" /> Add Medication
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                          <DialogTitle>Add New Medication</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                          <Form {...medicationForm}>
+                            <form onSubmit={medicationForm.handleSubmit(handleAddMedication)} className="space-y-4">
                               <FormField
                                 control={medicationForm.control}
-                                name="startDate"
+                                name="name"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Start Date</FormLabel>
+                                    <FormLabel>Medication Name</FormLabel>
                                     <FormControl>
-                                      <Input type="date" {...field} />
+                                      <Input placeholder="Enter medication name" {...field} />
                                     </FormControl>
                                   </FormItem>
                                 )}
                               />
                               <FormField
                                 control={medicationForm.control}
-                                name="endDate"
+                                name="dosage"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>End Date (if applicable)</FormLabel>
+                                    <FormLabel>Dosage</FormLabel>
                                     <FormControl>
-                                      <Input type="date" {...field} />
+                                      <Input placeholder="e.g. 10mg, 500mg" {...field} />
                                     </FormControl>
                                   </FormItem>
                                 )}
                               />
-                            </div>
-                            <FormField
-                              control={medicationForm.control}
-                              name="frequency"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Frequency</FormLabel>
-                                  <FormControl>
-                                    <Input placeholder="e.g. Once daily, Twice daily with meals" {...field} />
-                                  </FormControl>
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={medicationForm.control}
-                              name="instructions"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Instructions</FormLabel>
-                                  <FormControl>
-                                    <Textarea placeholder="Additional instructions or notes" {...field} />
-                                  </FormControl>
-                                </FormItem>
-                              )}
-                            />
-                            <div className="flex justify-end">
-                              <Button type="submit">Add Medication</Button>
-                            </div>
-                          </form>
-                        </Form>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-                
-                {medicationsLoading ? (
-                  <div className="flex justify-center py-10">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mediblue-600"></div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                  control={medicationForm.control}
+                                  name="startDate"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Start Date</FormLabel>
+                                      <FormControl>
+                                        <Input type="date" {...field} />
+                                      </FormControl>
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={medicationForm.control}
+                                  name="endDate"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>End Date (if applicable)</FormLabel>
+                                      <FormControl>
+                                        <Input type="date" {...field} />
+                                      </FormControl>
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                              <FormField
+                                control={medicationForm.control}
+                                name="frequency"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Frequency</FormLabel>
+                                    <FormControl>
+                                      <Input placeholder="e.g. Once daily, Twice daily with meals" {...field} />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={medicationForm.control}
+                                name="instructions"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Instructions</FormLabel>
+                                    <FormControl>
+                                      <Textarea placeholder="Additional instructions or notes" {...field} />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+                              <div className="flex justify-end">
+                                <Button type="submit">Add Medication</Button>
+                              </div>
+                            </form>
+                          </Form>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
-                ) : medications && medications.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    {medications.map((medication) => (
-                      <MedicationCard 
-                        key={medication.id} 
-                        medication={{
-                          id: medication.id,
-                          name: medication.name,
-                          dosage: medication.dosage || '',
-                          frequency: medication.frequency || '',
-                          startDate: medication.start_date || '',
-                          endDate: medication.end_date || undefined,
-                          instructions: medication.instructions || '',
-                          isActive: medication.is_active,
-                        }} 
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-blue-50 p-6 rounded-md mt-4 text-center">
-                    <p className="text-gray-600">You don't have any medications recorded yet.</p>
-                    <Button className="mt-2" variant="outline">Add Your First Medication</Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                  
+                  {medicationsLoading ? (
+                    <div className="flex justify-center py-10">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mediblue-600"></div>
+                    </div>
+                  ) : medications && medications.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      {medications.map((medication) => (
+                        <MedicationCard 
+                          key={medication.id} 
+                          medication={{
+                            id: medication.id,
+                            name: medication.name,
+                            dosage: medication.dosage || '',
+                            frequency: medication.frequency || '',
+                            startDate: medication.start_date || '',
+                            endDate: medication.end_date || undefined,
+                            instructions: medication.instructions || '',
+                            isActive: medication.is_active,
+                          }} 
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-blue-50 p-6 rounded-md mt-4 text-center">
+                      <p className="text-gray-600">You don't have any medications recorded yet.</p>
+                      <Button className="mt-2" variant="outline">Add Your First Medication</Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
-          {/* Medical Records Tab */}
-          <TabsContent value="records">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-medium">Medical Records</h2>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" /> Upload Record
-                  </Button>
-                </div>
-                <p className="text-gray-600 mb-4">
-                  You can view and download your medical records here. Records are encrypted and HIPAA-compliant.
-                </p>
-                <div className="bg-blue-50 p-6 rounded-md mt-4 text-center">
-                  <p className="text-gray-600">No medical records have been uploaded yet.</p>
-                  <Button className="mt-2" variant="outline">Upload Your First Record</Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {/* Medical Records Tab - Only for patients */}
+          {!isDoctor && (
+            <TabsContent value="records">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-medium">Medical Records</h2>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" /> Upload Record
+                    </Button>
+                  </div>
+                  <p className="text-gray-600 mb-4">
+                    You can view and download your medical records here. Records are encrypted and HIPAA-compliant.
+                  </p>
+                  <div className="bg-blue-50 p-6 rounded-md mt-4 text-center">
+                    <p className="text-gray-600">No medical records have been uploaded yet.</p>
+                    <Button className="mt-2" variant="outline">Upload Your First Record</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
+          {/* Reports Tab - Only for patients */}
+          {!isDoctor && (
+            <TabsContent value="reports">
+              <PatientReports />
+            </TabsContent>
+          )}
+
+          {/* Doctor-specific tabs */}
+          {isDoctor && (
+            <>
+              <TabsContent value="specialties">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg font-medium">Your Specialties & Expertise</h2>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" /> Add Specialty
+                      </Button>
+                    </div>
+                    <div className="bg-blue-50 p-6 rounded-md mt-4 text-center">
+                      <p className="text-gray-600">Add your medical specialties and areas of expertise.</p>
+                      <Button className="mt-2" variant="outline">Update Specialties</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="availability">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg font-medium">Set Your Availability</h2>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" /> Update Schedule
+                      </Button>
+                    </div>
+                    <div className="bg-blue-50 p-6 rounded-md mt-4">
+                      <p className="text-center text-gray-600">Set your available hours for patient appointments.</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="credentials">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-lg font-medium">Professional Credentials</h2>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" /> Add Credential
+                      </Button>
+                    </div>
+                    <div className="bg-blue-50 p-6 rounded-md mt-4 text-center">
+                      <p className="text-gray-600">Manage your professional credentials and certifications.</p>
+                      <Button className="mt-2" variant="outline">Upload Credentials</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </>
+          )}
         </Tabs>
       </div>
     </MainLayout>

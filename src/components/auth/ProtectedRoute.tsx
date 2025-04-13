@@ -5,10 +5,16 @@ import { Navigate, useLocation } from 'react-router-dom';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  doctorOnly?: boolean;
+  patientOnly?: boolean;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
+  children, 
+  doctorOnly = false, 
+  patientOnly = false 
+}) => {
+  const { isAuthenticated, loading, isDoctor } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -21,6 +27,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" state={{ from: location.pathname }} replace />;
+  }
+
+  // Role-based access control
+  if (doctorOnly && !isDoctor) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (patientOnly && isDoctor) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

@@ -21,3 +21,9 @@ enabled = true
 [functions]
 [functions.ai-chat]
 verify_jwt = false
+
+[functions.generate-report]
+verify_jwt = true
+
+[functions.send-report]
+verify_jwt = true

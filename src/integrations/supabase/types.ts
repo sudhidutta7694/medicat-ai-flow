@@ -36,6 +36,42 @@ export type Database = {
         }
         Relationships: []
       }
+      appointments: {
+        Row: {
+          created_at: string
+          doctor_id: string
+          id: string
+          issue: string | null
+          notes: string | null
+          patient_id: string
+          scheduled_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_id: string
+          id?: string
+          issue?: string | null
+          notes?: string | null
+          patient_id: string
+          scheduled_at: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          issue?: string | null
+          notes?: string | null
+          patient_id?: string
+          scheduled_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
@@ -89,6 +125,33 @@ export type Database = {
           title?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      doctors: {
+        Row: {
+          availability: Json | null
+          created_at: string
+          experience_years: number | null
+          id: string
+          qualification: string | null
+          specialty: string
+        }
+        Insert: {
+          availability?: Json | null
+          created_at?: string
+          experience_years?: number | null
+          id: string
+          qualification?: string | null
+          specialty: string
+        }
+        Update: {
+          availability?: Json | null
+          created_at?: string
+          experience_years?: number | null
+          id?: string
+          qualification?: string | null
+          specialty?: string
         }
         Relationships: []
       }
@@ -205,6 +268,7 @@ export type Database = {
           last_name: string | null
           phone: string | null
           updated_at: string
+          user_type: string | null
         }
         Insert: {
           created_at?: string
@@ -216,6 +280,7 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           updated_at?: string
+          user_type?: string | null
         }
         Update: {
           created_at?: string
@@ -227,8 +292,59 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           updated_at?: string
+          user_type?: string | null
         }
         Relationships: []
+      }
+      reports: {
+        Row: {
+          appointment_id: string | null
+          content: string
+          created_at: string
+          doctor_id: string
+          id: string
+          is_sent: boolean | null
+          patient_id: string
+          prescription: string | null
+          title: string
+          updated_at: string
+          visit_summary: string | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          content: string
+          created_at?: string
+          doctor_id: string
+          id?: string
+          is_sent?: boolean | null
+          patient_id: string
+          prescription?: string | null
+          title: string
+          updated_at?: string
+          visit_summary?: string | null
+        }
+        Update: {
+          appointment_id?: string | null
+          content?: string
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          is_sent?: boolean | null
+          patient_id?: string
+          prescription?: string | null
+          title?: string
+          updated_at?: string
+          visit_summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

@@ -2,14 +2,14 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { User, MessageSquare, Calendar, Home, Menu, LogOut, LogIn } from 'lucide-react';
+import { User, MessageSquare, Calendar, Home, Menu, LogOut, LogIn, Clipboard, PanelLeft } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/context/AuthContext';
 
 const Navbar: React.FC = () => {
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const { isAuthenticated, signOut, user } = useAuth();
+  const { isAuthenticated, signOut, user, isDoctor } = useAuth();
   const navigate = useNavigate();
 
   const handleAuthButtonClick = () => {
@@ -41,9 +41,26 @@ const Navbar: React.FC = () => {
                   <Link to="/chat" className="text-gray-700 hover:text-mediblue-600 px-3 py-2 rounded-md text-sm font-medium">
                     AI Chat
                   </Link>
-                  <Link to="/timeline" className="text-gray-700 hover:text-mediblue-600 px-3 py-2 rounded-md text-sm font-medium">
-                    Timeline
-                  </Link>
+                  
+                  {isDoctor ? (
+                    // Doctor-specific navigation links
+                    <>
+                      <Link to="/doctor-dashboard" className="text-gray-700 hover:text-mediblue-600 px-3 py-2 rounded-md text-sm font-medium">
+                        Dashboard
+                      </Link>
+                    </>
+                  ) : (
+                    // Patient-specific navigation links
+                    <>
+                      <Link to="/appointments" className="text-gray-700 hover:text-mediblue-600 px-3 py-2 rounded-md text-sm font-medium">
+                        Appointments
+                      </Link>
+                      <Link to="/timeline" className="text-gray-700 hover:text-mediblue-600 px-3 py-2 rounded-md text-sm font-medium">
+                        Timeline
+                      </Link>
+                    </>
+                  )}
+                  
                   <Link to="/profile" className="text-gray-700 hover:text-mediblue-600 px-3 py-2 rounded-md text-sm font-medium">
                     My Profile
                   </Link>
@@ -93,10 +110,29 @@ const Navbar: React.FC = () => {
                   <MessageSquare className="mr-3 h-5 w-5" />
                   AI Chat
                 </Link>
-                <Link to="/timeline" className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-mediblue-600 hover:bg-gray-50">
-                  <Calendar className="mr-3 h-5 w-5" />
-                  Timeline
-                </Link>
+                
+                {isDoctor ? (
+                  // Doctor-specific mobile navigation links
+                  <>
+                    <Link to="/doctor-dashboard" className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-mediblue-600 hover:bg-gray-50">
+                      <PanelLeft className="mr-3 h-5 w-5" />
+                      Dashboard
+                    </Link>
+                  </>
+                ) : (
+                  // Patient-specific mobile navigation links
+                  <>
+                    <Link to="/appointments" className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-mediblue-600 hover:bg-gray-50">
+                      <Calendar className="mr-3 h-5 w-5" />
+                      Appointments
+                    </Link>
+                    <Link to="/timeline" className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-mediblue-600 hover:bg-gray-50">
+                      <Clipboard className="mr-3 h-5 w-5" />
+                      Timeline
+                    </Link>
+                  </>
+                )}
+                
                 <Link to="/profile" className="flex items-center px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-mediblue-600 hover:bg-gray-50">
                   <User className="mr-3 h-5 w-5" />
                   My Profile

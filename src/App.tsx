@@ -12,6 +12,8 @@ import ChatPage from "./pages/ChatPage";
 import TimelinePage from "./pages/TimelinePage";
 import ProfilePage from "./pages/ProfilePage";
 import AuthPage from "./pages/AuthPage";
+import DoctorDashboard from "./pages/DoctorDashboard";
+import AppointmentPage from "./pages/AppointmentPage";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +48,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <ProfilePage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/appointments" 
+              element={
+                <ProtectedRoute>
+                  <AppointmentPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/doctor-dashboard" 
+              element={
+                <ProtectedRoute>
+                  <DoctorDashboard />
                 </ProtectedRoute>
               } 
             />
