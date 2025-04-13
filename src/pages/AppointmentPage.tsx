@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
@@ -68,7 +67,6 @@ const AppointmentPage = () => {
     },
   });
 
-  // Watch the date and doctorId fields to update available time slots
   const selectedDate = form.watch('date');
   const selectedDoctorId = form.watch('doctorId');
 
@@ -79,7 +77,6 @@ const AppointmentPage = () => {
       try {
         setLoading(true);
         
-        // Fetch doctors with profiles using more robust query approach
         const { data: doctorsData, error: doctorsError } = await supabase
           .from('doctors')
           .select(`
@@ -97,7 +94,6 @@ const AppointmentPage = () => {
         
         if (doctorsError) throw doctorsError;
         
-        // Transform doctor data for display
         const processedDoctors = doctorsData.map((doctor: any) => {
           return {
             ...doctor,
@@ -108,11 +104,9 @@ const AppointmentPage = () => {
         
         setDoctors(processedDoctors);
         
-        // Extract unique specialties for the filter
         const uniqueSpecialties = [...new Set(processedDoctors.map((doctor: any) => doctor.specialty))];
         setSpecialties(uniqueSpecialties);
         
-        // Fetch user's existing appointments and doctor information separately
         const { data: appointmentsData, error: appointmentsError } = await supabase
           .from('appointments')
           .select('*')
@@ -121,10 +115,8 @@ const AppointmentPage = () => {
         
         if (appointmentsError) throw appointmentsError;
         
-        // Fetch doctor details for each appointment
         const appointmentsWithDoctors = await Promise.all(
           appointmentsData.map(async (appointment) => {
-            // Get doctor specialty
             const { data: doctorData, error: doctorError } = await supabase
               .from('doctors')
               .select('specialty')
@@ -139,7 +131,6 @@ const AppointmentPage = () => {
               };
             }
             
-            // Get doctor profile
             const { data: profileData, error: profileError } = await supabase
               .from('profiles')
               .select('first_name, last_name')
@@ -177,17 +168,14 @@ const AppointmentPage = () => {
     fetchData();
   }, [user]);
 
-  // Update available time slots when doctor or date changes
   useEffect(() => {
     if (selectedDoctorId && selectedDate) {
-      // Get the doctor's working hours
       const selectedDoctor = doctors.find(d => d.id === selectedDoctorId);
       if (!selectedDoctor || !selectedDoctor.working_hours) {
         setAvailableTimeSlots(['09:00', '10:00', '11:00', '14:00', '15:00', '16:00']);
         return;
       }
 
-      // Get day of week from selected date
       const dayOfWeek = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
       const workingHours = selectedDoctor.working_hours[dayOfWeek];
       
@@ -196,8 +184,6 @@ const AppointmentPage = () => {
         return;
       }
 
-      // Generate time slots from working hours
-      // This is a simplified version - in a real app you'd parse start/end times and generate slots
       const slots = [];
       for (const hourRange of workingHours) {
         const [start, end] = hourRange.split('-');
@@ -213,7 +199,6 @@ const AppointmentPage = () => {
     }
   }, [selectedDoctorId, selectedDate, doctors]);
 
-  // Filter doctors by specialty
   const filteredDoctors = selectedSpecialty 
     ? doctors.filter(doctor => doctor.specialty === selectedSpecialty)
     : doctors;
@@ -227,7 +212,6 @@ const AppointmentPage = () => {
     try {
       setSubmitting(true);
       
-      // Combine date and time into a single timestamp
       const scheduledAt = new Date(`${values.date}T${values.time}`);
       
       const { data, error } = await supabase
@@ -249,7 +233,6 @@ const AppointmentPage = () => {
         description: 'Your appointment request has been submitted. You will be notified once it is confirmed.',
       });
       
-      // Add the new appointment to the local state
       if (data && data.length > 0) {
         const newAppointment = data[0];
         const selectedDoctor = doctors.find(d => d.id === values.doctorId);
@@ -266,7 +249,6 @@ const AppointmentPage = () => {
         setUserAppointments(prev => [appointmentWithDoctorInfo, ...prev]);
       }
       
-      // Reset the form
       form.reset();
     } catch (error: any) {
       console.error('Error submitting appointment:', error);
@@ -338,7 +320,6 @@ const AppointmentPage = () => {
               <CardContent>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    {/* Specialty selector */}
                     <div className="mb-4">
                       <FormLabel>Select Specialty</FormLabel>
                       <Select 
@@ -349,7 +330,7 @@ const AppointmentPage = () => {
                           <SelectValue placeholder="All Specialties" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">All Specialties</SelectItem>
+                          <SelectItem value="all">All Specialties</SelectItem>
                           {specialties.map(specialty => (
                             <SelectItem key={specialty} value={specialty}>
                               {specialty}
@@ -382,7 +363,7 @@ const AppointmentPage = () => {
                                   </SelectItem>
                                 ))
                               ) : (
-                                <SelectItem value="" disabled>
+                                <SelectItem value="no-doctors" disabled>
                                   No doctors available for this specialty
                                 </SelectItem>
                               )}
@@ -424,7 +405,7 @@ const AppointmentPage = () => {
                               </FormControl>
                               <SelectContent>
                                 {availableTimeSlots[0] === 'Not available on this day' ? (
-                                  <SelectItem value="" disabled>Doctor not available on this day</SelectItem>
+                                  <SelectItem value="not-available" disabled>Doctor not available on this day</SelectItem>
                                 ) : (
                                   availableTimeSlots.map(slot => (
                                     <SelectItem key={slot} value={slot}>
