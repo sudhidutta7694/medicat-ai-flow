@@ -35,40 +35,34 @@ const TranscriptShare: React.FC<TranscriptShareProps> = ({ messages, title }) =>
     try {
       setLoadingDoctors(true);
       
-      // First fetch doctors' IDs
-      const { data: doctorsData, error: doctorsError } = await supabase
+      // First, get profiles with user_type = 'doctor'
+      const { data: doctorProfiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .eq('user_type', 'doctor');
+      
+      if (profilesError) throw profilesError;
+      
+      // Then, get doctor specialties
+      const { data: doctorSpecialties, error: specialtiesError } = await supabase
         .from('doctors')
         .select('id, specialty');
+        
+      if (specialtiesError) throw specialtiesError;
       
-      if (doctorsError) throw doctorsError;
+      // Combine the data
+      const doctorsWithDetails = doctorProfiles.map(profile => {
+        const doctorInfo = doctorSpecialties.find(d => d.id === profile.id);
+        return {
+          id: profile.id,
+          first_name: profile.first_name || 'Unknown',
+          last_name: profile.last_name || '',
+          specialty: doctorInfo?.specialty || 'General',
+          fullName: `Dr. ${profile.first_name || 'Unknown'} ${profile.last_name || ''} (${doctorInfo?.specialty || 'General'})`
+        };
+      });
       
-      // Then fetch profiles for each doctor separately
-      const doctorsWithProfiles = await Promise.all(
-        doctorsData.map(async (doctor) => {
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('first_name, last_name')
-            .eq('id', doctor.id)
-            .single();
-          
-          if (profileError) {
-            console.error('Error fetching doctor profile:', profileError);
-            return {
-              ...doctor,
-              fullName: `Dr. Unknown (${doctor.specialty})`,
-              profiles: { first_name: 'Unknown', last_name: '' }
-            };
-          }
-          
-          return {
-            ...doctor,
-            profiles: profileData,
-            fullName: `Dr. ${profileData.first_name} ${profileData.last_name} (${doctor.specialty})`
-          };
-        })
-      );
-      
-      setDoctors(doctorsWithProfiles);
+      setDoctors(doctorsWithDetails);
     } catch (error: any) {
       console.error('Error loading doctors:', error);
       toast({

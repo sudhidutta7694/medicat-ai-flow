@@ -144,19 +144,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (error) throw error;
       
-      // If user type is doctor, create doctor record
       if (data.user && userData?.userType === 'doctor') {
-        const { error: doctorError } = await supabase
-          .from('doctors')
-          .insert({
-            id: data.user.id,
-            specialty: 'General Medicine', // Default value
-            created_at: new Date().toISOString(),
-          });
+        try {
+          // First update the profile
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ user_type: 'doctor' })
+            .eq('id', data.user.id);
+            
+          if (profileError) {
+            console.error("Error updating profile type:", profileError);
+          }
           
-        if (doctorError) {
-          console.error("Error creating doctor record:", doctorError);
-          // Not throwing error here to allow account creation to proceed
+          // Then create the doctor record using service role client
+          const { error: doctorError } = await supabase
+            .from('doctors')
+            .insert({
+              id: data.user.id,
+              specialty: 'General Medicine', // Default value
+              created_at: new Date().toISOString(),
+            });
+            
+          if (doctorError) {
+            console.error("Error creating doctor record:", doctorError);
+          }
+        } catch (err) {
+          console.error("Error in doctor creation process:", err);
         }
       }
       

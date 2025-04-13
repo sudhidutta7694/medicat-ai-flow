@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Link, useLocation, Navigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, User, UserCog } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 
@@ -183,15 +183,24 @@ const AuthPage = () => {
                       defaultValue="patient"
                       value={userType}
                       onValueChange={(value) => setUserType(value)}
-                      className="flex flex-col space-y-1"
+                      className="flex flex-col space-y-3 border p-4 rounded-md"
                     >
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 bg-gray-50 p-3 rounded border">
                         <RadioGroupItem value="patient" id="patient" />
-                        <Label htmlFor="patient">Patient</Label>
+                        <User className="h-5 w-5 text-mediblue-600 mr-2" />
+                        <div>
+                          <Label htmlFor="patient" className="font-medium">Patient</Label>
+                          <p className="text-sm text-gray-500">For individuals seeking healthcare services</p>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      
+                      <div className="flex items-center space-x-2 bg-gray-50 p-3 rounded border">
                         <RadioGroupItem value="doctor" id="doctor" />
-                        <Label htmlFor="doctor">Healthcare Provider</Label>
+                        <UserCog className="h-5 w-5 text-mediblue-600 mr-2" />
+                        <div>
+                          <Label htmlFor="doctor" className="font-medium">Healthcare Provider</Label>
+                          <p className="text-sm text-gray-500">For doctors, nurses, and other medical professionals</p>
+                        </div>
                       </div>
                     </RadioGroup>
                   </div>
