@@ -39,51 +39,91 @@ const AppointmentPage = () => {
       try {
         setLoading(true);
         
-        // Fetch available doctors
+        // Fetch doctors with a modified approach to avoid relation errors
         const { data: doctorsData, error: doctorsError } = await supabase
           .from('doctors')
-          .select(`
-            id,
-            specialty,
-            qualification,
-            profiles:id (
-              first_name,
-              last_name
-            )
-          `);
+          .select('id, specialty, qualification');
         
         if (doctorsError) throw doctorsError;
         
-        // Transform the data to include full name
-        const processedDoctors = doctorsData.map(doctor => ({
-          ...doctor,
-          fullName: `Dr. ${doctor.profiles.first_name} ${doctor.profiles.last_name} (${doctor.specialty})`
-        }));
+        // Fetch profiles for each doctor separately
+        const doctorsWithProfiles = await Promise.all(
+          doctorsData.map(async (doctor) => {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', doctor.id)
+              .single();
+            
+            if (profileError) {
+              console.error('Error fetching doctor profile:', profileError);
+              return {
+                ...doctor,
+                profiles: { first_name: 'Unknown', last_name: '' },
+                fullName: `Dr. Unknown (${doctor.specialty})`
+              };
+            }
+            
+            return {
+              ...doctor,
+              profiles: profileData,
+              fullName: `Dr. ${profileData.first_name} ${profileData.last_name} (${doctor.specialty})`
+            };
+          })
+        );
         
-        setDoctors(processedDoctors);
+        setDoctors(doctorsWithProfiles);
         
-        // Fetch user's existing appointments
+        // Fetch user's existing appointments and doctor information separately
         const { data: appointmentsData, error: appointmentsError } = await supabase
           .from('appointments')
-          .select(`
-            id,
-            scheduled_at,
-            status,
-            issue,
-            doctor_id,
-            doctors:doctor_id (
-              specialty,
-              profiles:id (
-                first_name,
-                last_name
-              )
-            )
-          `)
+          .select('*')
           .eq('patient_id', user.id)
           .order('scheduled_at', { ascending: false });
         
         if (appointmentsError) throw appointmentsError;
-        setUserAppointments(appointmentsData);
+        
+        // Fetch doctor details for each appointment
+        const appointmentsWithDoctors = await Promise.all(
+          appointmentsData.map(async (appointment) => {
+            // Get doctor specialty
+            const { data: doctorData, error: doctorError } = await supabase
+              .from('doctors')
+              .select('specialty')
+              .eq('id', appointment.doctor_id)
+              .single();
+            
+            if (doctorError) {
+              console.error('Error fetching doctor specialty:', doctorError);
+              return {
+                ...appointment,
+                doctorInfo: { specialty: 'Unknown', first_name: 'Unknown', last_name: 'Unknown' }
+              };
+            }
+            
+            // Get doctor profile
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', appointment.doctor_id)
+              .single();
+            
+            if (profileError) {
+              console.error('Error fetching doctor profile:', profileError);
+              return {
+                ...appointment,
+                doctorInfo: { ...doctorData, first_name: 'Unknown', last_name: 'Unknown' }
+              };
+            }
+            
+            return {
+              ...appointment,
+              doctorInfo: { ...doctorData, ...profileData }
+            };
+          })
+        );
+        
+        setUserAppointments(appointmentsWithDoctors);
       } catch (error: any) {
         console.error('Error fetching data:', error);
         toast({
@@ -135,15 +175,16 @@ const AppointmentPage = () => {
         const newAppointment = data[0];
         const selectedDoctor = doctors.find(d => d.id === values.doctorId);
         
-        newAppointment.doctors = {
-          specialty: selectedDoctor.specialty,
-          profiles: {
+        const appointmentWithDoctorInfo = {
+          ...newAppointment,
+          doctorInfo: {
+            specialty: selectedDoctor.specialty,
             first_name: selectedDoctor.profiles.first_name,
-            last_name: selectedDoctor.profiles.last_name,
+            last_name: selectedDoctor.profiles.last_name
           }
         };
         
-        setUserAppointments(prev => [newAppointment, ...prev]);
+        setUserAppointments(prev => [appointmentWithDoctorInfo, ...prev]);
       }
       
       // Reset the form
@@ -335,9 +376,9 @@ const AppointmentPage = () => {
                                 {formatAppointmentTime(appointment.scheduled_at)}
                               </div>
                               <h4 className="font-semibold">
-                                Dr. {appointment.doctors.profiles.first_name} {appointment.doctors.profiles.last_name}
+                                Dr. {appointment.doctorInfo.first_name} {appointment.doctorInfo.last_name}
                               </h4>
-                              <div className="text-sm">{appointment.doctors.specialty}</div>
+                              <div className="text-sm">{appointment.doctorInfo.specialty}</div>
                             </div>
                             <div>
                               <span className={`text-xs px-2 py-1 rounded ${getStatusBadgeClass(appointment.status)}`}>

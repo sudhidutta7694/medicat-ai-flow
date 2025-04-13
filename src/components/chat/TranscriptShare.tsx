@@ -35,26 +35,40 @@ const TranscriptShare: React.FC<TranscriptShareProps> = ({ messages, title }) =>
     try {
       setLoadingDoctors(true);
       
-      const { data, error } = await supabase
+      // First fetch doctors' IDs
+      const { data: doctorsData, error: doctorsError } = await supabase
         .from('doctors')
-        .select(`
-          id,
-          specialty,
-          profiles:id (
-            first_name,
-            last_name
-          )
-        `);
+        .select('id, specialty');
       
-      if (error) throw error;
+      if (doctorsError) throw doctorsError;
       
-      // Transform the data to include full name
-      const processedDoctors = data.map(doctor => ({
-        ...doctor,
-        fullName: `Dr. ${doctor.profiles.first_name} ${doctor.profiles.last_name} (${doctor.specialty})`
-      }));
+      // Then fetch profiles for each doctor separately
+      const doctorsWithProfiles = await Promise.all(
+        doctorsData.map(async (doctor) => {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', doctor.id)
+            .single();
+          
+          if (profileError) {
+            console.error('Error fetching doctor profile:', profileError);
+            return {
+              ...doctor,
+              fullName: `Dr. Unknown (${doctor.specialty})`,
+              profiles: { first_name: 'Unknown', last_name: '' }
+            };
+          }
+          
+          return {
+            ...doctor,
+            profiles: profileData,
+            fullName: `Dr. ${profileData.first_name} ${profileData.last_name} (${doctor.specialty})`
+          };
+        })
+      );
       
-      setDoctors(processedDoctors);
+      setDoctors(doctorsWithProfiles);
     } catch (error: any) {
       console.error('Error loading doctors:', error);
       toast({

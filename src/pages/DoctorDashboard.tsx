@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
@@ -36,7 +35,6 @@ const DoctorDashboard = () => {
     },
   });
 
-  // Fetch doctor appointments, patients, and reports
   useEffect(() => {
     const fetchDoctorData = async () => {
       if (!user) return;
@@ -44,58 +42,67 @@ const DoctorDashboard = () => {
       try {
         setLoading(true);
         
-        // Fetch all appointments for this doctor
         const { data: appointmentsData, error: appointmentsError } = await supabase
           .from('appointments')
-          .select(`
-            *,
-            profiles:patient_id (
-              id, 
-              first_name, 
-              last_name, 
-              email, 
-              phone, 
-              date_of_birth
-            )
-          `)
-          .eq('doctor_id', user.id)
-          .order('scheduled_at', { ascending: true });
+          .select('*')
+          .eq('doctor_id', user.id);
         
         if (appointmentsError) throw appointmentsError;
         
-        // Process appointments into upcoming and pending
+        const patientIds = [...new Set(appointmentsData.map(apt => apt.patient_id))];
+        
+        const { data: patientProfiles, error: patientError } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', patientIds);
+        
+        if (patientError) throw patientError;
+        
+        const appointmentsWithPatients = appointmentsData.map(appointment => {
+          const patientProfile = patientProfiles.find(p => p.id === appointment.patient_id);
+          return {
+            ...appointment,
+            profiles: patientProfile || { 
+              first_name: 'Unknown', 
+              last_name: 'Unknown',
+              email: 'unknown@example.com',
+              phone: 'N/A',
+              date_of_birth: null
+            }
+          };
+        });
+        
         const now = new Date();
-        const upcoming = appointmentsData
+        const upcoming = appointmentsWithPatients
           .filter(apt => apt.status === 'confirmed' && new Date(apt.scheduled_at) > now)
           .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
         
-        const pending = appointmentsData.filter(apt => apt.status === 'pending');
+        const pending = appointmentsWithPatients.filter(apt => apt.status === 'pending');
         
         setAppointments(upcoming);
         setPendingAppointments(pending);
 
-        // Extract unique patients from appointments
-        const uniquePatients = [...new Map(appointmentsData.map(apt => 
-          [apt.profiles.id, { ...apt.profiles }]
-        )).values()];
-        setPatients(uniquePatients);
+        setPatients(patientProfiles);
         
-        // Fetch reports created by this doctor
         const { data: reportsData, error: reportsError } = await supabase
           .from('reports')
-          .select(`
-            *,
-            profiles:patient_id (
-              id, 
-              first_name, 
-              last_name
-            )
-          `)
+          .select('*')
           .eq('doctor_id', user.id)
           .order('created_at', { ascending: false });
         
         if (reportsError) throw reportsError;
-        setReports(reportsData);
+        
+        const reportsWithPatients = await Promise.all(
+          reportsData.map(async (report) => {
+            const patientProfile = patientProfiles.find(p => p.id === report.patient_id);
+            return {
+              ...report,
+              profiles: patientProfile || { first_name: 'Unknown', last_name: 'Unknown' }
+            };
+          })
+        );
+        
+        setReports(reportsWithPatients);
       } catch (error: any) {
         console.error('Error fetching doctor data:', error);
         toast({
@@ -122,7 +129,6 @@ const DoctorDashboard = () => {
       
       if (error) throw error;
       
-      // Update local state
       setPendingAppointments(prev => prev.filter(apt => apt.id !== appointmentId));
       
       if (status === 'confirmed') {
@@ -158,7 +164,6 @@ const DoctorDashboard = () => {
         throw new Error('Appointment not found');
       }
       
-      // Call the generate-report edge function
       const { data, error } = await supabase.functions.invoke('generate-report', {
         body: {
           appointmentId: appointment.id,
@@ -171,7 +176,6 @@ const DoctorDashboard = () => {
       
       if (error) throw error;
       
-      // Add the new report to the local state
       if (data.report) {
         setReports(prev => [{
           ...data.report,
@@ -185,7 +189,6 @@ const DoctorDashboard = () => {
         description: 'Report generated successfully',
       });
       
-      // Reset the form
       setTranscriptionText('');
       setPatientNotes('');
       setSelectedAppointment(null);
@@ -209,7 +212,6 @@ const DoctorDashboard = () => {
         throw new Error('Report not found');
       }
       
-      // Call the send-report edge function
       const { data, error } = await supabase.functions.invoke('send-report', {
         body: {
           reportId: report.id,
@@ -221,7 +223,6 @@ const DoctorDashboard = () => {
       
       if (error) throw error;
       
-      // Update the local state
       setReports(prev => prev.map(r => {
         if (r.id === reportId) {
           return { ...r, is_sent: true };
@@ -331,7 +332,6 @@ const DoctorDashboard = () => {
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
           
-          {/* Appointments Tab */}
           <TabsContent value="appointments">
             <Card>
               <CardHeader>
@@ -424,7 +424,6 @@ const DoctorDashboard = () => {
             </Card>
           </TabsContent>
           
-          {/* Pending Requests Tab */}
           <TabsContent value="pending">
             <Card>
               <CardHeader>
@@ -479,7 +478,6 @@ const DoctorDashboard = () => {
             </Card>
           </TabsContent>
           
-          {/* Patients Tab */}
           <TabsContent value="patients">
             <Card>
               <CardHeader>
@@ -537,7 +535,6 @@ const DoctorDashboard = () => {
             </Card>
           </TabsContent>
           
-          {/* Reports Tab */}
           <TabsContent value="reports">
             <Card>
               <CardHeader>
