@@ -2,9 +2,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Mic, PaperclipIcon, Share, Download, Loader2, Info } from 'lucide-react';
+import { 
+  Send, 
+  Mic, 
+  PaperclipIcon, 
+  Share, 
+  Download, 
+  Loader2, 
+  Info, 
+  Trash2, 
+  FileText, 
+  Stethoscope, 
+  ToggleRight
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useChat } from '@/hooks/use-chat';
@@ -15,15 +26,19 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter
 } from "@/components/ui/dialog";
 import { 
   Card, 
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription 
+  CardDescription, 
+  CardFooter
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Command,
   CommandEmpty,
@@ -33,9 +48,20 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // Common medical question suggestions
-const QUESTION_SUGGESTIONS = [
+const PATIENT_QUESTION_SUGGESTIONS = [
   "What are common symptoms of the flu?",
   "How can I manage my diabetes better?",
   "What medications help with migraines?",
@@ -46,13 +72,35 @@ const QUESTION_SUGGESTIONS = [
   "What questions should I ask my doctor at my next appointment?"
 ];
 
+const DOCTOR_QUESTION_SUGGESTIONS = [
+  "Help me create a questionnaire for diabetes patients",
+  "What are the latest guidelines for hypertension management?",
+  "Generate patient education material for asthma",
+  "How should I explain this medication's side effects to patients?",
+  "What diagnostic criteria should I consider for this symptom cluster?",
+  "Generate discharge instructions for post-operative care",
+  "What questions should I ask to assess medication adherence?",
+  "Create a follow-up protocol for chronic condition management"
+];
+
 const ChatPage = () => {
   const [message, setMessage] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [doctorMode, setDoctorMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { messages, isTyping, sendMessage, exportChat, shareWithDoctor } = useChat();
+  const { 
+    messages, 
+    isTyping, 
+    sendMessage, 
+    exportChat, 
+    shareWithDoctor, 
+    clearChat, 
+    generateDiagnosticSummary 
+  } = useChat(doctorMode);
   const { toast } = useToast();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const questionSuggestions = doctorMode ? DOCTOR_QUESTION_SUGGESTIONS : PATIENT_QUESTION_SUGGESTIONS;
 
   const handleSendMessage = () => {
     if (!message.trim()) return;
@@ -133,6 +181,27 @@ const ChatPage = () => {
     });
   };
 
+  const handleToggleDoctorMode = () => {
+    // Show confirmation only when enabling doctor mode
+    if (!doctorMode) {
+      setDoctorMode(true);
+      toast({
+        title: "Doctor Mode Enabled",
+        description: "Chat is now in clinical professional mode with more detailed medical information."
+      });
+      // Reset the chat when switching modes
+      clearChat();
+    } else {
+      setDoctorMode(false);
+      toast({
+        title: "Patient Mode Enabled",
+        description: "Chat is now in patient-friendly mode."
+      });
+      // Reset the chat when switching modes
+      clearChat();
+    }
+  };
+
   // Scroll to bottom whenever messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -140,36 +209,64 @@ const ChatPage = () => {
 
   // Format message content with markdown-like syntax
   const formatMessage = (content: string) => {
+    // Replace ## headings
+    let formattedContent = content.replace(/^##\s(.*)$/gm, '<h3 class="text-lg font-bold mt-2 mb-1">$1</h3>');
+    
     // Replace **text** with bold
-    const boldText = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     
     // Replace * or - lists with proper HTML lists
-    const withLists = boldText.replace(
+    formattedContent = formattedContent.replace(
       /(\n\s*(\*|\-)\s.*)+/g, 
-      match => `<ul>${match.replace(/\n\s*(\*|\-)\s(.*)/g, '<li>$2</li>')}</ul>`
+      match => `<ul class="list-disc pl-5 my-2">${match.replace(/\n\s*(\*|\-)\s(.*)/g, '<li>$2</li>')}</ul>`
     );
     
     // Replace URLs with clickable links
-    const withLinks = withLists.replace(
+    formattedContent = formattedContent.replace(
       /(https?:\/\/[^\s]+)/g,
       '<a href="$1" target="_blank" class="text-blue-600 underline">$1</a>'
     );
     
     // Replace new lines with <br>
-    return withLinks.replace(/\n/g, '<br>');
+    return formattedContent.replace(/\n/g, '<br>');
   };
 
   return (
     <MainLayout>
       <div className="mediflow-container py-6 flex flex-col h-[calc(100vh-180px)]">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">AI Health Assistant</h1>
+          <div className="flex items-center space-x-3">
+            <h1 className="text-2xl font-bold text-gray-900">
+              {doctorMode ? (
+                <span className="flex items-center">
+                  <Stethoscope className="h-6 w-6 mr-2" />
+                  Clinical AI Assistant
+                </span>
+              ) : (
+                "AI Health Assistant"
+              )}
+            </h1>
+            <Badge className={doctorMode ? "bg-indigo-100 text-indigo-800" : "bg-mediblue-100 text-mediblue-800"}>
+              {doctorMode ? "Doctor Mode" : "Patient Mode"}
+            </Badge>
+          </div>
+          
           <div className="flex gap-2">
+            <div className="flex items-center space-x-2 mr-2">
+              <Switch
+                id="doctor-mode"
+                checked={doctorMode}
+                onCheckedChange={handleToggleDoctorMode}
+                className={doctorMode ? "bg-indigo-600" : ""}
+              />
+              <Label htmlFor="doctor-mode" className="text-sm">Doctor Mode</Label>
+            </div>
+
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
                   <Info className="h-4 w-4 mr-2" />
-                  About AI Assistant
+                  About
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
@@ -185,10 +282,16 @@ const ChatPage = () => {
                       <CardTitle className="text-lg">Capabilities</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <Badge className="bg-green-100 text-green-800 hover:bg-green-200">Symptom Assessment</Badge>
                         <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">Medication Information</Badge>
                         <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-200">Health Education</Badge>
+                        {doctorMode && (
+                          <>
+                            <Badge className="bg-indigo-100 text-indigo-800 hover:bg-indigo-200">Patient Questionnaires</Badge>
+                            <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200">Clinical Decision Support</Badge>
+                          </>
+                        )}
                       </div>
                       <p>The AI assistant can:</p>
                       <ul className="list-disc pl-5 space-y-1">
@@ -196,6 +299,13 @@ const ChatPage = () => {
                         <li>Provide information about your medications and conditions</li>
                         <li>Prepare questions for your doctor appointments</li>
                         <li>Offer general health guidance and education</li>
+                        {doctorMode && (
+                          <>
+                            <li>Help create custom questionnaires for patient assessment</li>
+                            <li>Generate patient education materials</li>
+                            <li>Provide clinical decision support based on evidence</li>
+                          </>
+                        )}
                       </ul>
                     </CardContent>
                   </Card>
@@ -225,21 +335,58 @@ const ChatPage = () => {
             
             <Button variant="outline" size="sm" onClick={shareWithDoctor}>
               <Share className="h-4 w-4 mr-2" />
-              Share with Doctor
+              Share
             </Button>
             <Button variant="outline" size="sm" onClick={exportChat}>
               <Download className="h-4 w-4 mr-2" />
-              Export Chat
+              Export
             </Button>
+
+            {doctorMode && (
+              <Button variant="outline" size="sm" onClick={generateDiagnosticSummary}>
+                <FileText className="h-4 w-4 mr-2" />
+                Generate Summary
+              </Button>
+            )}
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear conversation history?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. The current conversation will be cleared.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={clearChat}>Clear</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
         
         {/* Chat medical info alert */}
-        <div className="medical-info mb-4 bg-blue-50 p-3 rounded-md border border-blue-100">
-          <h3 className="font-medium">Important Notice</h3>
+        <div className={cn(
+          "medical-info mb-4 p-3 rounded-md border",
+          doctorMode 
+            ? "bg-indigo-50 border-indigo-100" 
+            : "bg-blue-50 border-blue-100"
+        )}>
+          <h3 className="font-medium">
+            {doctorMode ? "Clinical Mode" : "Important Notice"}
+          </h3>
           <p className="text-sm">
-            This AI assistant provides general health information and is not a substitute for professional medical advice. 
-            Always consult with your healthcare provider for diagnosis and treatment.
+            {doctorMode
+              ? "You are in doctor mode. This assistant provides clinical decision support and can help you prepare patient materials. Always apply clinical judgment."
+              : "This AI assistant provides general health information and is not a substitute for professional medical advice. Always consult with your healthcare provider for diagnosis and treatment."
+            }
           </p>
         </div>
 
@@ -259,7 +406,9 @@ const ChatPage = () => {
                     "max-w-md rounded-lg p-4",
                     msg.role === 'user' 
                       ? "bg-mediblue-500 text-white rounded-br-none"
-                      : "bg-white border border-gray-200 rounded-bl-none"
+                      : doctorMode
+                        ? "bg-white border border-indigo-200 rounded-bl-none"
+                        : "bg-white border border-gray-200 rounded-bl-none"
                   )}
                 >
                   <div
@@ -271,11 +420,25 @@ const ChatPage = () => {
             ))}
             {isTyping && (
               <div className="flex justify-start">
-                <div className="bg-white border border-gray-200 rounded-lg rounded-bl-none p-4 max-w-md">
+                <div className={cn(
+                  "p-4 max-w-md rounded-lg rounded-bl-none border",
+                  doctorMode
+                    ? "bg-white border-indigo-200"
+                    : "bg-white border-gray-200"
+                )}>
                   <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-mediblue-500 rounded-full animate-pulse"></div>
-                    <div className="w-2 h-2 bg-mediblue-500 rounded-full animate-pulse delay-150"></div>
-                    <div className="w-2 h-2 bg-mediblue-500 rounded-full animate-pulse delay-300"></div>
+                    <div className={cn(
+                      "w-2 h-2 rounded-full animate-pulse",
+                      doctorMode ? "bg-indigo-500" : "bg-mediblue-500"
+                    )}></div>
+                    <div className={cn(
+                      "w-2 h-2 rounded-full animate-pulse delay-150",
+                      doctorMode ? "bg-indigo-500" : "bg-mediblue-500"
+                    )}></div>
+                    <div className={cn(
+                      "w-2 h-2 rounded-full animate-pulse delay-300",
+                      doctorMode ? "bg-indigo-500" : "bg-mediblue-500"
+                    )}></div>
                   </div>
                 </div>
               </div>
@@ -298,7 +461,7 @@ const ChatPage = () => {
                     <CommandList>
                       <CommandEmpty>No suggestions found.</CommandEmpty>
                       <CommandGroup>
-                        {QUESTION_SUGGESTIONS.map((suggestion, index) => (
+                        {questionSuggestions.map((suggestion, index) => (
                           <CommandItem 
                             key={index} 
                             onSelect={() => handleSelectSuggestion(suggestion)}
@@ -356,8 +519,14 @@ const ChatPage = () => {
             <div className="flex-grow relative">
               <Textarea
                 ref={textareaRef}
-                className="pr-16 min-h-[2.5rem] max-h-[150px] resize-none"
-                placeholder="Type your message or ask a health question..."
+                className={cn(
+                  "pr-16 min-h-[2.5rem] max-h-[150px] resize-none",
+                  doctorMode && "border-indigo-200 focus-visible:ring-indigo-400"
+                )}
+                placeholder={doctorMode 
+                  ? "Enter clinical questions or request patient materials..." 
+                  : "Type your message or ask a health question..."
+                }
                 value={message}
                 onChange={handleTextareaChange}
                 onKeyDown={handleKeyPress}
@@ -376,7 +545,10 @@ const ChatPage = () => {
               )}
               
               <Button 
-                className="absolute right-1 top-1 bottom-1" 
+                className={cn(
+                  "absolute right-1 top-1 bottom-1",
+                  doctorMode && "bg-indigo-600 hover:bg-indigo-700"
+                )} 
                 size="sm"
                 onClick={handleSendMessage}
                 disabled={!message.trim() || isTyping}

@@ -14,12 +14,14 @@ export interface ChatMessage {
   timestamp?: string;
 }
 
-export const useChat = () => {
+export const useChat = (doctorMode: boolean = false) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([
     { 
       role: 'bot', 
-      content: "Hello! I'm your MediFlow AI assistant. How can I help you today? I can help assess your symptoms, provide information about medications, or prepare for your doctor's appointment." 
+      content: doctorMode 
+        ? "Hello doctor! I'm your MediFlow AI assistant. I can help you create custom chatbot experiences for your patients, provide clinical insights, and assist with medical information." 
+        : "Hello! I'm your MediFlow AI assistant. How can I help you today? I can help assess your symptoms, provide information about medications, or prepare for your doctor's appointment."
     }
   ]);
   const [isTyping, setIsTyping] = useState(false);
@@ -36,7 +38,10 @@ export const useChat = () => {
       try {
         const { data, error } = await supabase
           .from('chat_sessions')
-          .insert([{ user_id: user.id, title: `Chat ${new Date().toLocaleDateString()}` }])
+          .insert([{ 
+            user_id: user.id, 
+            title: doctorMode ? `Doctor Session ${new Date().toLocaleDateString()}` : `Chat ${new Date().toLocaleDateString()}` 
+          }])
           .select()
           .single();
           
@@ -50,7 +55,7 @@ export const useChat = () => {
     if (user && !sessionId) {
       createSession();
     }
-  }, [user, sessionId]);
+  }, [user, sessionId, doctorMode]);
   
   // Save message to database
   const saveMessage = async (message: ChatMessage) => {
@@ -96,7 +101,8 @@ export const useChat = () => {
         body: {
           message: messageText,
           userId: user?.id,
-          userContext
+          userContext,
+          doctorMode
         }
       });
 
@@ -171,12 +177,82 @@ export const useChat = () => {
       description: "Your email client has been opened with the chat transcript."
     });
   };
+
+  // Clear chat history
+  const clearChat = () => {
+    setMessages([{ 
+      role: 'bot', 
+      content: doctorMode 
+        ? "Chat cleared. How else can I assist you with creating patient experiences?" 
+        : "Chat cleared. How else can I help you today?"
+    }]);
+
+    toast({
+      title: "Chat Cleared",
+      description: "Your conversation history has been cleared."
+    });
+  };
+
+  // Generate diagnostic summary
+  const generateDiagnosticSummary = async () => {
+    if (messages.length < 3) {
+      toast({
+        title: "Not Enough Information",
+        description: "Please have a longer conversation first to generate a meaningful summary.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsTyping(true);
+    
+    try {
+      const conversation = messages.map(msg => `${msg.role}: ${msg.content}`).join('\n\n');
+      
+      const summaryPrompt = `Based on the following conversation, please generate a concise medical summary including possible diagnoses, recommended next steps, and any key concerns that should be addressed. Format your response as a professional medical note.\n\nCONVERSATION:\n${conversation}`;
+      
+      // Call our edge function to get AI response
+      const response = await supabase.functions.invoke('ai-chat', {
+        body: {
+          message: summaryPrompt,
+          userId: user?.id,
+          doctorMode: true // Always use doctor mode for summaries
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      const summaryMessage: ChatMessage = { 
+        role: 'bot', 
+        content: `## Medical Summary\n\n${response.data.content}`
+      };
+      
+      setMessages(prev => [...prev, summaryMessage]);
+      
+      // Save summary message to database
+      await saveMessage(summaryMessage);
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate diagnostic summary.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsTyping(false);
+    }
+  };
   
   return { 
     messages, 
     isTyping, 
     sendMessage,
     exportChat,
-    shareWithDoctor 
+    shareWithDoctor,
+    clearChat,
+    generateDiagnosticSummary,
+    doctorMode
   };
 };

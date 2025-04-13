@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY") || "sk-6d74c1ad0ede41599a57ffaaf0b079f2";
+const TOGETHER_API_KEY = Deno.env.get("TOGETHER_API_KEY") || "4219e7d7a6bb031daa2be50d0fd41e8e698ec82ca1c8fb1ae1e03e47fb275167";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,6 +16,7 @@ interface ChatRequest {
     conditions?: any[];
     recentEvents?: any[];
   };
+  doctorMode?: boolean;
 }
 
 serve(async (req: Request) => {
@@ -25,18 +26,20 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { message, userId, userContext } = await req.json() as ChatRequest;
+    const { message, userId, userContext, doctorMode } = await req.json() as ChatRequest;
 
     // Prepare system prompt based on available user data
-    let systemPrompt = `You are MediFlow, a medical AI assistant designed to help patients. 
-Your role is to provide helpful medical information, symptom assessment, and general health guidance. 
+    let systemPrompt = `You are MediFlow, an advanced medical AI assistant designed to help patients and healthcare providers.
+Your role is to provide helpful medical information, symptom assessment, and clinical guidance.
 Always clarify you're not a replacement for professional medical advice.
 
 When asked about symptoms:
 1. Ask clarifying questions about duration, severity, and context
-2. Provide reasoned suggestions about possible causes
+2. Provide reasoned suggestions about possible causes (preclinical targeted diagnosis)
 3. Recommend when to seek professional care
 4. Be empathetic and clear in your responses
+
+${doctorMode ? `You are in DOCTOR MODE. You should provide more detailed clinical information and reasoning, using medical terminology as appropriate. Help the doctor create custom chatbot experiences for their patients.` : `You are in PATIENT MODE. Use simple language and focus on providing clear, actionable guidance for the patient.`}
 
 Today's date is ${new Date().toLocaleDateString()}.`;
 
@@ -68,14 +71,15 @@ Today's date is ${new Date().toLocaleDateString()}.`;
     console.log("System prompt:", systemPrompt);
     console.log("User message:", message);
 
-    const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
+    // Call the Together AI API
+    const response = await fetch("https://api.together.xyz/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`
+        "Authorization": `Bearer ${TOGETHER_API_KEY}`
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: message }
@@ -87,8 +91,8 @@ Today's date is ${new Date().toLocaleDateString()}.`;
 
     if (!response.ok) {
       const error = await response.json();
-      console.error("Deepseek API error:", error);
-      throw new Error(`Deepseek API error: ${JSON.stringify(error)}`);
+      console.error("Together AI API error:", error);
+      throw new Error(`Together AI API error: ${JSON.stringify(error)}`);
     }
 
     const data = await response.json();
