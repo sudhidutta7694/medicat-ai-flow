@@ -7,30 +7,70 @@ import { Button } from '@/components/ui/button';
 import { Form, FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useForm } from 'react-hook-form';
 import { Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+// Define types for clarity
+interface Doctor {
+  id: string;
+  specialty: string;
+  qualification: string | null;
+  working_hours: Record<string, string[]> | null;
+  education: string[] | null;
+  certifications: string[] | null;
+  profiles: {
+    first_name: string | null;
+    last_name: string | null;
+  };
+  fullName: string;
+}
+
+interface Appointment {
+  id: string;
+  patient_id: string;
+  doctor_id: string;
+  scheduled_at: string;
+  issue: string | null;
+  notes: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  doctorInfo: {
+    specialty: string;
+    first_name: string | null;
+    last_name: string | null;
+  };
+}
 
 const AppointmentPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [doctors, setDoctors] = useState<any[]>([]);
-  const [userAppointments, setUserAppointments] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [specialties, setSpecialties] = useState<string[]>([]);
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('');
+  const [userAppointments, setUserAppointments] = useState<Appointment[]>([]);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
 
   const form = useForm({
     defaultValues: {
       doctorId: '',
       date: '',
-      time: '09:00',
+      time: '',
       issue: '',
       notes: '',
     },
   });
+
+  // Watch the date and doctorId fields to update available time slots
+  const selectedDate = form.watch('date');
+  const selectedDoctorId = form.watch('doctorId');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,40 +79,36 @@ const AppointmentPage = () => {
       try {
         setLoading(true);
         
-        // Fetch doctors with a modified approach to avoid relation errors
+        // Fetch doctors with profiles using more robust query approach
         const { data: doctorsData, error: doctorsError } = await supabase
           .from('doctors')
-          .select('id, specialty, qualification');
+          .select(`
+            id,
+            specialty,
+            qualification,
+            working_hours,
+            education,
+            certifications,
+            profiles:id(
+              first_name,
+              last_name
+            )
+          `);
         
         if (doctorsError) throw doctorsError;
         
-        // Fetch profiles for each doctor separately
-        const doctorsWithProfiles = await Promise.all(
-          doctorsData.map(async (doctor) => {
-            const { data: profileData, error: profileError } = await supabase
-              .from('profiles')
-              .select('first_name, last_name')
-              .eq('id', doctor.id)
-              .single();
-            
-            if (profileError) {
-              console.error('Error fetching doctor profile:', profileError);
-              return {
-                ...doctor,
-                profiles: { first_name: 'Unknown', last_name: '' },
-                fullName: `Dr. Unknown (${doctor.specialty})`
-              };
-            }
-            
-            return {
-              ...doctor,
-              profiles: profileData,
-              fullName: `Dr. ${profileData.first_name} ${profileData.last_name} (${doctor.specialty})`
-            };
-          })
-        );
+        // Transform doctor data for display
+        const processedDoctors = doctorsData.map((doctor) => ({
+          ...doctor,
+          fullName: `Dr. ${doctor.profiles?.first_name || 'Unknown'} ${doctor.profiles?.last_name || ''} (${doctor.specialty})`,
+          profiles: doctor.profiles || { first_name: 'Unknown', last_name: '' }
+        }));
         
-        setDoctors(doctorsWithProfiles);
+        setDoctors(processedDoctors);
+        
+        // Extract unique specialties for the filter
+        const uniqueSpecialties = [...new Set(processedDoctors.map(doctor => doctor.specialty))];
+        setSpecialties(uniqueSpecialties);
         
         // Fetch user's existing appointments and doctor information separately
         const { data: appointmentsData, error: appointmentsError } = await supabase
@@ -139,6 +175,47 @@ const AppointmentPage = () => {
     fetchData();
   }, [user]);
 
+  // Update available time slots when doctor or date changes
+  useEffect(() => {
+    if (selectedDoctorId && selectedDate) {
+      // Get the doctor's working hours
+      const selectedDoctor = doctors.find(d => d.id === selectedDoctorId);
+      if (!selectedDoctor || !selectedDoctor.working_hours) {
+        setAvailableTimeSlots(['09:00', '10:00', '11:00', '14:00', '15:00', '16:00']);
+        return;
+      }
+
+      // Get day of week from selected date
+      const dayOfWeek = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'lowercase' });
+      const workingHours = selectedDoctor.working_hours[dayOfWeek];
+      
+      if (!workingHours || workingHours.length === 0) {
+        setAvailableTimeSlots(['Not available on this day']);
+        return;
+      }
+
+      // Generate time slots from working hours
+      // This is a simplified version - in a real app you'd parse start/end times and generate slots
+      const slots = [];
+      for (const hourRange of workingHours) {
+        const [start, end] = hourRange.split('-');
+        const startHour = parseInt(start.split(':')[0]);
+        const endHour = parseInt(end.split(':')[0]);
+        
+        for (let hour = startHour; hour < endHour; hour++) {
+          slots.push(`${hour.toString().padStart(2, '0')}:00`);
+        }
+      }
+      
+      setAvailableTimeSlots(slots.length > 0 ? slots : ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00']);
+    }
+  }, [selectedDoctorId, selectedDate, doctors]);
+
+  // Filter doctors by specialty
+  const filteredDoctors = selectedSpecialty 
+    ? doctors.filter(doctor => doctor.specialty === selectedSpecialty)
+    : doctors;
+
   const onSubmit = async (values: any) => {
     if (!user) {
       navigate('/auth');
@@ -178,9 +255,9 @@ const AppointmentPage = () => {
         const appointmentWithDoctorInfo = {
           ...newAppointment,
           doctorInfo: {
-            specialty: selectedDoctor.specialty,
-            first_name: selectedDoctor.profiles.first_name,
-            last_name: selectedDoctor.profiles.last_name
+            specialty: selectedDoctor?.specialty || 'Unknown',
+            first_name: selectedDoctor?.profiles.first_name || 'Unknown',
+            last_name: selectedDoctor?.profiles.last_name || 'Unknown'
           }
         };
         
@@ -259,6 +336,27 @@ const AppointmentPage = () => {
               <CardContent>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    {/* Specialty selector */}
+                    <div className="mb-4">
+                      <FormLabel>Select Specialty</FormLabel>
+                      <Select 
+                        value={selectedSpecialty} 
+                        onValueChange={setSelectedSpecialty}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All Specialties" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All Specialties</SelectItem>
+                          {specialties.map(specialty => (
+                            <SelectItem key={specialty} value={specialty}>
+                              {specialty}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
                     <FormField
                       control={form.control}
                       name="doctorId"
@@ -275,11 +373,17 @@ const AppointmentPage = () => {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {doctors.map(doctor => (
-                                <SelectItem key={doctor.id} value={doctor.id}>
-                                  {doctor.fullName}
+                              {filteredDoctors.length > 0 ? (
+                                filteredDoctors.map(doctor => (
+                                  <SelectItem key={doctor.id} value={doctor.id}>
+                                    {doctor.fullName}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="" disabled>
+                                  No doctors available for this specialty
                                 </SelectItem>
-                              ))}
+                              )}
                             </SelectContent>
                           </Select>
                         </FormItem>
@@ -306,9 +410,28 @@ const AppointmentPage = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Preferred Time</FormLabel>
-                            <FormControl>
-                              <Input type="time" {...field} />
-                            </FormControl>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              value={field.value}
+                              disabled={!selectedDoctorId || !selectedDate || availableTimeSlots[0] === 'Not available on this day'}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select time" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {availableTimeSlots[0] === 'Not available on this day' ? (
+                                  <SelectItem value="" disabled>Doctor not available on this day</SelectItem>
+                                ) : (
+                                  availableTimeSlots.map(slot => (
+                                    <SelectItem key={slot} value={slot}>
+                                      {slot}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
                           </FormItem>
                         )}
                       />
@@ -347,7 +470,7 @@ const AppointmentPage = () => {
                     <Button 
                       type="submit" 
                       className="w-full mt-4" 
-                      disabled={submitting}
+                      disabled={submitting || !form.watch('doctorId') || !form.watch('date') || !form.watch('time')}
                     >
                       {submitting ? 'Submitting...' : 'Request Appointment'}
                     </Button>

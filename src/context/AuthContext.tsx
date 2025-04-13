@@ -68,7 +68,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Pre-fetch doctor details if needed
           const { data: doctor } = await supabase
             .from('doctors')
-            .select('*')
+            .select(`
+              specialty,
+              qualification,
+              working_hours,
+              education,
+              certifications
+            `)
             .eq('id', user.id)
             .single();
             
@@ -156,12 +162,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error("Error updating profile type:", profileError);
           }
           
-          // Then create the doctor record using service role client
+          // Then create the doctor record
           const { error: doctorError } = await supabase
             .from('doctors')
             .insert({
               id: data.user.id,
               specialty: 'General Medicine', // Default value
+              qualification: 'MD',
+              education: ['Medical School'],
+              certifications: ['Board Certified'],
               created_at: new Date().toISOString(),
             });
             
