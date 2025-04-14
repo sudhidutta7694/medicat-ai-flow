@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Calendar, Clock, Save } from 'lucide-react';
+import { Json } from '@/integrations/supabase/types';
 
 interface DaySchedule {
   enabled: boolean;
@@ -19,6 +19,10 @@ interface DaySchedule {
 
 interface WorkingHours {
   [key: string]: string[];
+}
+
+interface AvailabilityData {
+  working_hours?: WorkingHours;
 }
 
 const DAYS_OF_WEEK = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -57,25 +61,28 @@ const AvailabilityForm = () => {
           return;
         }
         
-        if (data?.availability?.working_hours) {
+        if (data?.availability) {
           const savedSchedule = { ...schedule };
-          const workingHours = data.availability.working_hours as WorkingHours;
+          const availabilityData = data.availability as AvailabilityData;
+          const workingHours = availabilityData.working_hours;
           
-          DAYS_OF_WEEK.forEach(day => {
-            if (workingHours[day]) {
-              const timeSlots = workingHours[day].map(slot => {
-                const [start, end] = slot.split('-');
-                return { start, end };
-              });
-              
-              savedSchedule[day] = {
-                enabled: timeSlots.length > 0,
-                timeSlots: timeSlots.length > 0 ? timeSlots : [{ start: '09:00', end: '17:00' }]
-              };
-            }
-          });
-          
-          setSchedule(savedSchedule);
+          if (workingHours) {
+            DAYS_OF_WEEK.forEach(day => {
+              if (workingHours[day]) {
+                const timeSlots = workingHours[day].map(slot => {
+                  const [start, end] = slot.split('-');
+                  return { start, end };
+                });
+                
+                savedSchedule[day] = {
+                  enabled: timeSlots.length > 0,
+                  timeSlots: timeSlots.length > 0 ? timeSlots : [{ start: '09:00', end: '17:00' }]
+                };
+              }
+            });
+            
+            setSchedule(savedSchedule);
+          }
         }
       } catch (error) {
         console.error('Error:', error);
@@ -147,7 +154,6 @@ const AvailabilityForm = () => {
     try {
       setSaving(true);
       
-      // Convert schedule to format expected by the database
       const workingHours: WorkingHours = {};
       
       DAYS_OF_WEEK.forEach(day => {
@@ -168,7 +174,6 @@ const AvailabilityForm = () => {
       let updateError;
       
       if (!existingDoctor && fetchError && fetchError.code === 'PGRST116') {
-        // Doctor record doesn't exist, create a new one
         const { error } = await supabase
           .from('doctors')
           .insert([{
@@ -179,7 +184,6 @@ const AvailabilityForm = () => {
           
         updateError = error;
       } else {
-        // Doctor record exists, update it
         const { error } = await supabase
           .from('doctors')
           .update({
