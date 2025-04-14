@@ -26,39 +26,89 @@ serve(async (req: Request) => {
   }
 
   try {
+    console.log("Processing report generation request");
+    
     // Initialize Supabase client
     const supabaseClient = createClient(
       SUPABASE_URL || "",
       SUPABASE_ANON_KEY || ""
     );
     
-    const { appointmentId, transcription, patientNotes, doctorId, patientId } = await req.json() as ReportRequest;
+    const body = await req.json();
+    console.log("Request body:", body);
+    
+    const { appointmentId, transcription, patientNotes, doctorId, patientId } = body as ReportRequest;
 
+    if (!appointmentId || !doctorId || !patientId) {
+      throw new Error("Missing required parameters");
+    }
+
+    console.log("Fetching patient data");
     // Get patient and doctor information
-    const { data: patientData } = await supabaseClient
+    const { data: patientData, error: patientError } = await supabaseClient
       .from('profiles')
       .select('*')
       .eq('id', patientId)
       .single();
     
-    const { data: doctorData } = await supabaseClient
+    if (patientError) {
+      console.error("Error fetching patient data:", patientError);
+      throw patientError;
+    }
+    
+    console.log("Fetching doctor data");
+    const { data: doctorData, error: doctorError } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('id', doctorId)
+      .single();
+    
+    if (doctorError) {
+      console.error("Error fetching doctor data:", doctorError);
+      throw doctorError;
+    }
+    
+    // Get specialty data
+    console.log("Fetching doctor specialty data");
+    const { data: doctorSpecialtyData, error: specialtyError } = await supabaseClient
       .from('doctors')
       .select('*')
       .eq('id', doctorId)
       .single();
     
+    if (specialtyError && specialtyError.code !== 'PGRST116') {
+      console.error("Error fetching specialty data:", specialtyError);
+    }
+    
     // Get patient medical context
-    const { data: medications } = await supabaseClient
+    console.log("Fetching patient medications");
+    const { data: medications, error: medicationsError } = await supabaseClient
       .from('medications')
       .select('*')
       .eq('user_id', patientId);
     
-    const { data: conditions } = await supabaseClient
+    if (medicationsError) {
+      console.error("Error fetching medications:", medicationsError);
+    }
+    
+    console.log("Fetching patient medical conditions");
+    const { data: conditions, error: conditionsError } = await supabaseClient
       .from('medical_conditions')
       .select('*')
       .eq('user_id', patientId);
+    
+    if (conditionsError) {
+      console.error("Error fetching conditions:", conditionsError);
+    }
 
     // Generate visit summary from transcription using Together AI
+    const doctorName = doctorData 
+      ? `Dr. ${doctorData.first_name || ''} ${doctorData.last_name || ''}` 
+      : 'Unknown Doctor';
+    
+    const doctorSpecialty = doctorSpecialtyData?.specialty || 'General Medicine';
+    
+    console.log("Generating visit summary");
     const visitSummaryPrompt = `
 You are an AI medical scribe assisting a doctor. Based on the following consultation transcription and patient notes, create a concise, professional visit summary in the SOAP format (Subjective, Objective, Assessment, Plan). Include only medically relevant information.
 
@@ -66,6 +116,10 @@ Patient Information:
 - Name: ${patientData?.first_name || ''} ${patientData?.last_name || ''}
 - Known Conditions: ${conditions?.map(c => c.name).join(', ') || 'None reported'}
 - Current Medications: ${medications?.map(m => m.name).join(', ') || 'None reported'}
+
+Doctor:
+- Name: ${doctorName}
+- Specialty: ${doctorSpecialty}
 
 Patient Notes: ${patientNotes}
 
@@ -93,13 +147,16 @@ Format your response as a medical visit summary.
     });
 
     if (!visitSummaryResponse.ok) {
-      throw new Error(`Error generating visit summary: ${await visitSummaryResponse.text()}`);
+      console.error("Visit summary API error:", await visitSummaryResponse.text());
+      throw new Error(`Error generating visit summary: API responded with ${visitSummaryResponse.status}`);
     }
 
     const visitSummaryData = await visitSummaryResponse.json();
     const visitSummary = visitSummaryData.choices[0].message.content;
+    console.log("Visit summary generated");
 
     // Generate prescription recommendation
+    console.log("Generating prescription recommendation");
     const prescriptionPrompt = `
 Based on the visit summary and patient information below, suggest potential prescription options (if appropriate). If no medication is needed, clearly state that. Be specific about dosage, frequency, and duration when suggesting medications.
 
@@ -132,11 +189,13 @@ Provide prescription recommendations in a structured format.
     });
 
     if (!prescriptionResponse.ok) {
-      throw new Error(`Error generating prescription: ${await prescriptionResponse.text()}`);
+      console.error("Prescription API error:", await prescriptionResponse.text());
+      throw new Error(`Error generating prescription: API responded with ${prescriptionResponse.status}`);
     }
 
     const prescriptionData = await prescriptionResponse.json();
     const prescription = prescriptionData.choices[0].message.content;
+    console.log("Prescription recommendation generated");
 
     // Create a complete report
     const title = `Visit Report: ${patientData?.first_name || ''} ${patientData?.last_name || ''} - ${new Date().toLocaleDateString()}`;
@@ -145,7 +204,7 @@ Provide prescription recommendations in a structured format.
 
 **Date:** ${new Date().toLocaleDateString()}
 **Patient:** ${patientData?.first_name || ''} ${patientData?.last_name || ''}
-**Doctor:** Dr. ${doctorData?.specialty || 'Specialist'}
+**Doctor:** ${doctorName} (${doctorSpecialty})
 
 ## Summary
 ${visitSummary}
@@ -155,6 +214,7 @@ This report was generated based on doctor-patient consultation. The information 
 `;
 
     // Insert the report into the database
+    console.log("Saving report to database");
     const { data: report, error } = await supabaseClient
       .from('reports')
       .insert({
@@ -170,9 +230,11 @@ This report was generated based on doctor-patient consultation. The information 
       .single();
 
     if (error) {
+      console.error("Error saving report to database:", error);
       throw error;
     }
 
+    console.log("Report generated successfully:", report.id);
     return new Response(JSON.stringify({
       success: true,
       report: {

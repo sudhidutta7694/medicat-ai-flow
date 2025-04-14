@@ -163,6 +163,14 @@ const DoctorDashboard = () => {
       if (!appointment) {
         throw new Error('Appointment not found');
       }
+
+      console.log("Generating report with data:", {
+        appointmentId: appointment.id,
+        transcription: transcriptionText,
+        patientNotes,
+        doctorId: user?.id,
+        patientId: appointment.patient_id,
+      });
       
       const { data, error } = await supabase.functions.invoke('generate-report', {
         body: {
@@ -176,18 +184,22 @@ const DoctorDashboard = () => {
       
       if (error) throw error;
       
-      if (data.report) {
+      console.log("Report generation response:", data);
+      
+      if (data && data.report) {
         setReports(prev => [{
           ...data.report,
           profiles: appointment.profiles,
           created_at: new Date().toISOString()
         }, ...prev]);
+
+        toast({
+          title: 'Success',
+          description: 'Report generated successfully',
+        });
+      } else {
+        throw new Error('No report data returned');
       }
-      
-      toast({
-        title: 'Success',
-        description: 'Report generated successfully',
-      });
       
       setTranscriptionText('');
       setPatientNotes('');

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
@@ -14,8 +13,10 @@ export interface ChatMessage {
   timestamp?: string;
 }
 
-export const useChat = (doctorMode: boolean = false) => {
-  const { user } = useAuth();
+export const useChat = (overrideDoctorMode?: boolean) => {
+  const { user, isDoctor } = useAuth();
+  const doctorMode = overrideDoctorMode !== undefined ? overrideDoctorMode : isDoctor;
+  
   const [messages, setMessages] = useState<ChatMessage[]>([
     { 
       role: 'bot', 
@@ -30,7 +31,6 @@ export const useChat = (doctorMode: boolean = false) => {
   const { medications } = useMedications();
   const { conditions } = useMedicalConditions();
   
-  // Create or get current chat session
   useEffect(() => {
     const createSession = async () => {
       if (!user) return;
@@ -57,7 +57,6 @@ export const useChat = (doctorMode: boolean = false) => {
     }
   }, [user, sessionId, doctorMode]);
   
-  // Save message to database
   const saveMessage = async (message: ChatMessage) => {
     if (!user || !sessionId) return;
     
@@ -79,24 +78,20 @@ export const useChat = (doctorMode: boolean = false) => {
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim()) return;
     
-    // Add user message
     const userMessage: ChatMessage = { role: 'user', content: messageText };
     setMessages(prev => [...prev, userMessage]);
     
-    // Save user message to database
     await saveMessage(userMessage);
     
     setIsTyping(true);
     
     try {
-      // Prepare user context for more personalized responses
       const userContext = {
         medications: medications || [],
         conditions: conditions || [],
         recentEvents: events ? events.slice(0, 5) : []
       };
 
-      // Call our edge function to get AI response
       const response = await supabase.functions.invoke('ai-chat', {
         body: {
           message: messageText,
@@ -117,9 +112,8 @@ export const useChat = (doctorMode: boolean = false) => {
       
       setMessages(prev => [...prev, botMessage]);
       
-      // Save bot message to database
       await saveMessage(botMessage);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting AI response:', error);
       const errorMessage: ChatMessage = { 
         role: 'bot', 
@@ -127,7 +121,6 @@ export const useChat = (doctorMode: boolean = false) => {
       };
       setMessages(prev => [...prev, errorMessage]);
       
-      // Save error message to database
       await saveMessage(errorMessage);
       
       toast({
@@ -162,7 +155,6 @@ export const useChat = (doctorMode: boolean = false) => {
   };
   
   const shareWithDoctor = () => {
-    // In a real application, this would integrate with email or patient portal
     const messageContent = messages.map(msg => 
       `[${msg.role.toUpperCase()}]: ${msg.content}`
     ).join('\n\n');
@@ -178,7 +170,6 @@ export const useChat = (doctorMode: boolean = false) => {
     });
   };
 
-  // Clear chat history
   const clearChat = () => {
     setMessages([{ 
       role: 'bot', 
@@ -193,7 +184,6 @@ export const useChat = (doctorMode: boolean = false) => {
     });
   };
 
-  // Generate diagnostic summary
   const generateDiagnosticSummary = async () => {
     if (messages.length < 3) {
       toast({
@@ -211,12 +201,11 @@ export const useChat = (doctorMode: boolean = false) => {
       
       const summaryPrompt = `Based on the following conversation, please generate a concise medical summary including possible diagnoses, recommended next steps, and any key concerns that should be addressed. Format your response as a professional medical note.\n\nCONVERSATION:\n${conversation}`;
       
-      // Call our edge function to get AI response
       const response = await supabase.functions.invoke('ai-chat', {
         body: {
           message: summaryPrompt,
           userId: user?.id,
-          doctorMode: true // Always use doctor mode for summaries
+          doctorMode: true
         }
       });
 
@@ -231,7 +220,6 @@ export const useChat = (doctorMode: boolean = false) => {
       
       setMessages(prev => [...prev, summaryMessage]);
       
-      // Save summary message to database
       await saveMessage(summaryMessage);
     } catch (error) {
       console.error('Error generating summary:', error);
