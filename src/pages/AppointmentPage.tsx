@@ -13,6 +13,7 @@ import { Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { Json } from '@/integrations/supabase/types';
 
 // Define types for clarity
 interface Doctor {
@@ -25,6 +26,9 @@ interface Doctor {
   first_name: string | null;
   last_name: string | null;
   fullName: string;
+  created_at: string;
+  experience_years: number | null;
+  availability: Json | null;
 }
 
 interface Appointment {
@@ -97,7 +101,10 @@ const AppointmentPage = () => {
                 ...doctor,
                 first_name: 'Unknown',
                 last_name: '',
-                fullName: `Dr. Unknown (${doctor.specialty})`
+                fullName: `Dr. Unknown (${doctor.specialty})`,
+                working_hours: doctor.working_hours || null,
+                education: doctor.education || null,
+                certifications: doctor.certifications || null,
               };
             }
             
@@ -105,14 +112,17 @@ const AppointmentPage = () => {
               ...doctor,
               first_name: profileData.first_name,
               last_name: profileData.last_name,
-              fullName: `Dr. ${profileData.first_name || 'Unknown'} ${profileData.last_name || ''} (${doctor.specialty})`
+              fullName: `Dr. ${profileData.first_name || 'Unknown'} ${profileData.last_name || ''} (${doctor.specialty})`,
+              working_hours: doctor.working_hours || null,
+              education: doctor.education || null,
+              certifications: doctor.certifications || null,
             };
           })
         );
         
-        setDoctors(doctorsWithProfiles);
+        setDoctors(doctorsWithProfiles as Doctor[]);
         
-        const uniqueSpecialties = [...new Set(doctorsWithProfiles.map((doctor: Doctor) => doctor.specialty))];
+        const uniqueSpecialties = [...new Set(doctorsWithProfiles.map((doctor) => doctor.specialty))];
         setSpecialties(uniqueSpecialties);
         
         const { data: appointmentsData, error: appointmentsError } = await supabase
