@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
@@ -15,20 +14,16 @@ import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { Json } from '@/integrations/supabase/types';
 
-// Define types for clarity
 interface Doctor {
   id: string;
   specialty: string;
   qualification: string | null;
-  working_hours: Record<string, string[]> | null;
-  education: string[] | null;
-  certifications: string[] | null;
+  availability: Json | null;
+  created_at: string;
+  experience_years: number | null;
   first_name: string | null;
   last_name: string | null;
   fullName: string;
-  created_at: string;
-  experience_years: number | null;
-  availability: Json | null;
 }
 
 interface Appointment {
@@ -79,14 +74,12 @@ const AppointmentPage = () => {
       try {
         setLoading(true);
         
-        // First fetch doctors data
         const { data: doctorsData, error: doctorsError } = await supabase
           .from('doctors')
           .select('*');
         
         if (doctorsError) throw doctorsError;
         
-        // Then fetch profiles data for each doctor
         const doctorsWithProfiles = await Promise.all(
           doctorsData.map(async (doctor) => {
             const { data: profileData, error: profileError } = await supabase
@@ -101,10 +94,7 @@ const AppointmentPage = () => {
                 ...doctor,
                 first_name: 'Unknown',
                 last_name: '',
-                fullName: `Dr. Unknown (${doctor.specialty})`,
-                working_hours: doctor.working_hours || null,
-                education: doctor.education || null,
-                certifications: doctor.certifications || null,
+                fullName: `Dr. Unknown (${doctor.specialty})`
               };
             }
             
@@ -112,10 +102,7 @@ const AppointmentPage = () => {
               ...doctor,
               first_name: profileData.first_name,
               last_name: profileData.last_name,
-              fullName: `Dr. ${profileData.first_name || 'Unknown'} ${profileData.last_name || ''} (${doctor.specialty})`,
-              working_hours: doctor.working_hours || null,
-              education: doctor.education || null,
-              certifications: doctor.certifications || null,
+              fullName: `Dr. ${profileData.first_name || 'Unknown'} ${profileData.last_name || ''} (${doctor.specialty})`
             };
           })
         );
@@ -189,13 +176,15 @@ const AppointmentPage = () => {
   useEffect(() => {
     if (selectedDoctorId && selectedDate) {
       const selectedDoctor = doctors.find(d => d.id === selectedDoctorId);
-      if (!selectedDoctor || !selectedDoctor.working_hours) {
+      if (!selectedDoctor || !selectedDoctor.availability) {
         setAvailableTimeSlots(['09:00', '10:00', '11:00', '14:00', '15:00', '16:00']);
         return;
       }
 
       const dayOfWeek = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-      const workingHours = selectedDoctor.working_hours[dayOfWeek];
+      
+      const availability = selectedDoctor.availability as any;
+      const workingHours = availability?.working_hours?.[dayOfWeek];
       
       if (!workingHours || workingHours.length === 0) {
         setAvailableTimeSlots(['Not available on this day']);
