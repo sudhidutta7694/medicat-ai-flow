@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Card, CardContent } from '@/components/ui/card';
@@ -78,20 +77,19 @@ const SpecialtiesForm = () => {
         experience_years: values.experience_years
       };
       
-      // If doctor record exists, update it; otherwise, insert new record
-      let query;
+      let result;
       if (doctorData) {
-        query = supabase
+        result = await supabase
           .from('doctors')
           .update(doctorInfo)
           .eq('id', user.id);
       } else {
-        query = supabase
+        result = await supabase
           .from('doctors')
           .insert([doctorInfo]);
       }
       
-      const { error } = await query;
+      const { error } = result;
       
       if (error) throw error;
       
@@ -100,7 +98,6 @@ const SpecialtiesForm = () => {
         description: 'Your specialty information has been updated.',
       });
       
-      // Update the doctorData state
       setDoctorData({ ...doctorData, ...doctorInfo });
       
     } catch (error: any) {

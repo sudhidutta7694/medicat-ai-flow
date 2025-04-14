@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Card, CardContent } from '@/components/ui/card';
@@ -38,8 +37,25 @@ const CredentialsForm = () => {
     try {
       setSubmitting(true);
       
-      // In a real application, you would store this in a separate credentials table
-      // For this example, we'll just show a success message
+      // First, check if doctor record exists
+      const { data: doctorData, error: fetchError } = await supabase
+        .from('doctors')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+      
+      // If doctor record doesn't exist, create one
+      if (fetchError && fetchError.code === 'PGRST116') {
+        const { error } = await supabase
+          .from('doctors')
+          .insert([{
+            id: user.id,
+            specialty: 'General Medicine', // Default specialty
+            // We could also store credentials in the future in a separate field
+          }]);
+        
+        if (error) throw error;
+      }
       
       toast({
         title: 'Credential Added',

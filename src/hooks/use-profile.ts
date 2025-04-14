@@ -14,6 +14,7 @@ interface ProfileData {
   gender: string | null;
   created_at: string;
   updated_at: string;
+  user_type?: string | null;
 }
 
 export const useProfile = () => {
