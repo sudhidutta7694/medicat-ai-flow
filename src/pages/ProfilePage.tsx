@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import MainLayout from '@/components/layout/MainLayout';
@@ -16,6 +15,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
 import PatientReports from '@/components/patient/PatientReports';
 import { User, FilePlus, Pill, Bell, Calendar, Clock, Plus } from 'lucide-react';
+import SpecialtiesForm from '@/components/doctor/SpecialtiesForm';
+import CredentialsForm from '@/components/doctor/CredentialsForm';
+import AvailabilityForm from '@/components/doctor/AvailabilityForm';
 
 const ProfilePage = () => {
   const { profile, loading: profileLoading, updateProfile } = useProfile();
@@ -31,7 +33,6 @@ const ProfilePage = () => {
   const [conditions, setConditions] = useState('');
   const [allergies, setAllergies] = useState('');
   
-  // Form for adding new medication
   const medicationForm = useForm({
     defaultValues: {
       name: '',
@@ -43,7 +44,6 @@ const ProfilePage = () => {
     }
   });
 
-  // Update state when profile data is loaded
   useEffect(() => {
     if (profile) {
       setFirstName(profile.first_name || '');
@@ -99,7 +99,6 @@ const ProfilePage = () => {
           </div>
         )}
 
-        {/* Patient Profile Tabs */}
         <Tabs defaultValue="personal">
           <TabsList className="grid grid-cols-4 mb-6">
             <TabsTrigger value="personal">
@@ -133,7 +132,6 @@ const ProfilePage = () => {
             )}
           </TabsList>
 
-          {/* Personal Info Tab */}
           <TabsContent value="personal">
             <Card>
               <CardContent className="pt-6">
@@ -246,7 +244,6 @@ const ProfilePage = () => {
             </Card>
           </TabsContent>
 
-          {/* Medications Tab - Only for patients */}
           {!isDoctor && (
             <TabsContent value="medications">
               <Card>
@@ -383,7 +380,6 @@ const ProfilePage = () => {
             </TabsContent>
           )}
 
-          {/* Medical Records Tab - Only for patients */}
           {!isDoctor && (
             <TabsContent value="records">
               <Card>
@@ -406,64 +402,24 @@ const ProfilePage = () => {
             </TabsContent>
           )}
 
-          {/* Reports Tab - Only for patients */}
           {!isDoctor && (
             <TabsContent value="reports">
               <PatientReports />
             </TabsContent>
           )}
 
-          {/* Doctor-specific tabs */}
           {isDoctor && (
             <>
               <TabsContent value="specialties">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-lg font-medium">Your Specialties & Expertise</h2>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" /> Add Specialty
-                      </Button>
-                    </div>
-                    <div className="bg-blue-50 p-6 rounded-md mt-4 text-center">
-                      <p className="text-gray-600">Add your medical specialties and areas of expertise.</p>
-                      <Button className="mt-2" variant="outline">Update Specialties</Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <SpecialtiesForm />
               </TabsContent>
               
               <TabsContent value="availability">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-lg font-medium">Set Your Availability</h2>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" /> Update Schedule
-                      </Button>
-                    </div>
-                    <div className="bg-blue-50 p-6 rounded-md mt-4">
-                      <p className="text-center text-gray-600">Set your available hours for patient appointments.</p>
-                    </div>
-                  </CardContent>
-                </Card>
+                <AvailabilityForm />
               </TabsContent>
               
               <TabsContent value="credentials">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-lg font-medium">Professional Credentials</h2>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" /> Add Credential
-                      </Button>
-                    </div>
-                    <div className="bg-blue-50 p-6 rounded-md mt-4 text-center">
-                      <p className="text-gray-600">Manage your professional credentials and certifications.</p>
-                      <Button className="mt-2" variant="outline">Upload Credentials</Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <CredentialsForm />
               </TabsContent>
             </>
           )}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
@@ -109,6 +110,7 @@ const AppointmentPage = () => {
         
         setDoctors(doctorsWithProfiles as Doctor[]);
         
+        // Extract unique specialties from the doctors data
         const uniqueSpecialties = [...new Set(doctorsWithProfiles.map((doctor) => doctor.specialty))];
         setSpecialties(uniqueSpecialties);
         
