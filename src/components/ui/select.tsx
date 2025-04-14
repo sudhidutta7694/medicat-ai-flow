@@ -115,9 +115,9 @@ const SelectItem = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item> & {
     value: string;  // Explicitly require a non-empty string value
   }
->(({ className, children, ...props }, ref) => {
+>(({ className, children, value, ...props }, ref) => {
   // Validate that value is not an empty string
-  if (props.value === "") {
+  if (value === "") {
     console.error("A <SelectItem /> must have a value prop that is not an empty string");
     return null;
   }
@@ -129,6 +129,7 @@ const SelectItem = React.forwardRef<
         "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className
       )}
+      value={value}
       {...props}
     >
       <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">

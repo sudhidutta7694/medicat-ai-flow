@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Form, FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,6 @@ import { Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Define types for clarity
 interface Doctor {
@@ -77,6 +77,7 @@ const AppointmentPage = () => {
       try {
         setLoading(true);
         
+        // Fixed query to properly join profiles with doctors
         const { data: doctorsData, error: doctorsError } = await supabase
           .from('doctors')
           .select(`
@@ -94,6 +95,7 @@ const AppointmentPage = () => {
         
         if (doctorsError) throw doctorsError;
         
+        // Process doctors data with proper type checking
         const processedDoctors = doctorsData.map((doctor: any) => {
           return {
             ...doctor,
