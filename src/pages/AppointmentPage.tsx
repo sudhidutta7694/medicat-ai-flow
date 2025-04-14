@@ -22,10 +22,8 @@ interface Doctor {
   working_hours: Record<string, string[]> | null;
   education: string[] | null;
   certifications: string[] | null;
-  profiles: {
-    first_name: string | null;
-    last_name: string | null;
-  };
+  first_name: string | null;
+  last_name: string | null;
   fullName: string;
 }
 
@@ -53,7 +51,7 @@ const AppointmentPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [specialties, setSpecialties] = useState<string[]>([]);
-  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('');
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>("all");
   const [userAppointments, setUserAppointments] = useState<Appointment[]>([]);
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
 
@@ -77,36 +75,44 @@ const AppointmentPage = () => {
       try {
         setLoading(true);
         
-        // Fixed query to properly join profiles with doctors
+        // First fetch doctors data
         const { data: doctorsData, error: doctorsError } = await supabase
           .from('doctors')
-          .select(`
-            id,
-            specialty,
-            qualification,
-            working_hours,
-            education,
-            certifications,
-            profiles:id(
-              first_name,
-              last_name
-            )
-          `);
+          .select('*');
         
         if (doctorsError) throw doctorsError;
         
-        // Process doctors data with proper type checking
-        const processedDoctors = doctorsData.map((doctor: any) => {
-          return {
-            ...doctor,
-            fullName: `Dr. ${doctor.profiles?.first_name || 'Unknown'} ${doctor.profiles?.last_name || ''} (${doctor.specialty})`,
-            profiles: doctor.profiles || { first_name: 'Unknown', last_name: '' }
-          };
-        });
+        // Then fetch profiles data for each doctor
+        const doctorsWithProfiles = await Promise.all(
+          doctorsData.map(async (doctor) => {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', doctor.id)
+              .single();
+            
+            if (profileError) {
+              console.error('Error fetching doctor profile:', profileError);
+              return {
+                ...doctor,
+                first_name: 'Unknown',
+                last_name: '',
+                fullName: `Dr. Unknown (${doctor.specialty})`
+              };
+            }
+            
+            return {
+              ...doctor,
+              first_name: profileData.first_name,
+              last_name: profileData.last_name,
+              fullName: `Dr. ${profileData.first_name || 'Unknown'} ${profileData.last_name || ''} (${doctor.specialty})`
+            };
+          })
+        );
         
-        setDoctors(processedDoctors);
+        setDoctors(doctorsWithProfiles);
         
-        const uniqueSpecialties = [...new Set(processedDoctors.map((doctor: any) => doctor.specialty))];
+        const uniqueSpecialties = [...new Set(doctorsWithProfiles.map((doctor: Doctor) => doctor.specialty))];
         setSpecialties(uniqueSpecialties);
         
         const { data: appointmentsData, error: appointmentsError } = await supabase
@@ -201,9 +207,9 @@ const AppointmentPage = () => {
     }
   }, [selectedDoctorId, selectedDate, doctors]);
 
-  const filteredDoctors = selectedSpecialty 
-    ? doctors.filter(doctor => doctor.specialty === selectedSpecialty)
-    : doctors;
+  const filteredDoctors = selectedSpecialty === "all" 
+    ? doctors
+    : doctors.filter(doctor => doctor.specialty === selectedSpecialty);
 
   const onSubmit = async (values: any) => {
     if (!user) {
@@ -243,8 +249,8 @@ const AppointmentPage = () => {
           ...newAppointment,
           doctorInfo: {
             specialty: selectedDoctor?.specialty || 'Unknown',
-            first_name: selectedDoctor?.profiles.first_name || 'Unknown',
-            last_name: selectedDoctor?.profiles.last_name || 'Unknown'
+            first_name: selectedDoctor?.first_name || 'Unknown',
+            last_name: selectedDoctor?.last_name || 'Unknown'
           }
         };
         
