@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
@@ -55,6 +56,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+// Define the WebkitSpeechRecognition interface for TypeScript
+interface WebkitWindow extends Window {
+  webkitSpeechRecognition: any;
+}
+declare const window: WebkitWindow;
 
 const PATIENT_QUESTION_SUGGESTIONS = [
   "What are common symptoms of the flu?",
@@ -173,23 +180,8 @@ const ChatPage = () => {
     });
   };
 
-  const handleToggleDoctorMode = () => {
-    if (!doctorMode) {
-      setDoctorMode(true);
-      toast({
-        title: "Doctor Mode Enabled",
-        description: "Chat is now in clinical professional mode with more detailed medical information."
-      });
-      clearChat();
-    } else {
-      setDoctorMode(false);
-      toast({
-        title: "Patient Mode Enabled",
-        description: "Chat is now in patient-friendly mode."
-      });
-      clearChat();
-    }
-  };
+  // Removed the handleToggleDoctorMode function since doctor mode is 
+  // now automatically set based on user role in the useChat hook
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
