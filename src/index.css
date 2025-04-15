@@ -73,6 +73,23 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+    
+    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 210 40% 98%;
+    --sidebar-primary-foreground: 222.2 47.4% 11.2%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 212.7 26.8% 83.9%;
+    
+    /* Medical color palettes for dark mode */
+    --mediblue-50: 199 89% 15%;
+    --mediblue-100: 199 89% 20%;
+    --medigreen-50: 142 77% 15%;
+    --medigreen-100: 142 77% 20%;
+    --medired-50: 0 84% 15%;
+    --medired-100: 0 84% 20%;
   }
 }
 
@@ -82,7 +99,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-300;
   }
 }
 
@@ -92,18 +109,77 @@
   }
 
   .mediflow-card {
-    @apply bg-white rounded-xl shadow-md overflow-hidden border border-gray-100;
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-100 dark:border-gray-700;
   }
 
   .medical-alert {
-    @apply bg-red-50 border-l-4 border-red-500 p-4 mb-4;
+    @apply bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mb-4;
   }
 
   .medical-info {
-    @apply bg-blue-50 border-l-4 border-blue-500 p-4 mb-4;
+    @apply bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-4;
   }
 
   .medical-success {
-    @apply bg-green-50 border-l-4 border-green-500 p-4 mb-4;
+    @apply bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 mb-4;
   }
+  
+  /* Responsive utilities */
+  .responsive-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+  
+  .responsive-padding {
+    @apply px-2 sm:px-4 md:px-6 py-3 sm:py-4;
+  }
+  
+  .responsive-text {
+    @apply text-sm sm:text-base;
+  }
+  
+  .responsive-heading {
+    @apply text-lg sm:text-xl md:text-2xl font-bold;
+  }
+}
+
+/* Chat message formatting */
+.chat-message h3 {
+  @apply text-lg font-bold mt-2 mb-1;
+}
+
+.chat-message strong {
+  @apply font-semibold;
+}
+
+.chat-message ul {
+  @apply list-disc pl-5 my-2;
+}
+
+.chat-message a {
+  @apply text-blue-600 dark:text-blue-400 underline;
+}
+
+/* Custom scrollbar for modern browsers */
+@media (min-width: 640px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-500;
+  }
+}
+
+/* Animation for theme transition */
+.theme-transition {
+  @apply transition-all duration-300 ease-in-out;
 }

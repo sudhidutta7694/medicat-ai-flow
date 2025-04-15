@@ -75,6 +75,73 @@ export const useChat = () => {
     }
   };
   
+  const fetchUserFullContext = async () => {
+    if (!user) return {};
+    
+    try {
+      // Get basic profile info
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      // For doctors, get their specialty and experience
+      let doctorData = null;
+      if (doctorMode) {
+        const { data } = await supabase
+          .from('doctors')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        doctorData = data;
+      }
+      
+      // Get appointments
+      const { data: appointmentsData } = await supabase
+        .from('appointments')
+        .select(`
+          *,
+          doctor:doctor_id (
+            id,
+            specialty,
+            profiles:id (
+              first_name,
+              last_name
+            )
+          ),
+          patient:patient_id (
+            id,
+            first_name,
+            last_name
+          )
+        `)
+        .or(`patient_id.eq.${user.id},doctor_id.eq.${user.id}`)
+        .order('scheduled_at', { ascending: false });
+
+      // Get reports
+      const { data: reportsData } = await supabase
+        .from('reports')
+        .select('*')
+        .or(`patient_id.eq.${user.id},doctor_id.eq.${user.id}`)
+        .order('created_at', { ascending: false });
+        
+      return {
+        profile: profileData || {},
+        doctorInfo: doctorData,
+        appointments: appointmentsData || [],
+        reports: reportsData || [],
+        medications: medications || [],
+        conditions: conditions || [],
+        recentEvents: events ? events.slice(0, 10) : []
+      };
+      
+    } catch (error) {
+      console.error('Error fetching user context:', error);
+      return {};
+    }
+  };
+  
   const sendMessage = async (messageText: string) => {
     if (!messageText.trim()) return;
     
@@ -86,11 +153,8 @@ export const useChat = () => {
     setIsTyping(true);
     
     try {
-      const userContext = {
-        medications: medications || [],
-        conditions: conditions || [],
-        recentEvents: events ? events.slice(0, 5) : []
-      };
+      // Get comprehensive user context for better AI responses
+      const userContext = await fetchUserFullContext();
 
       const response = await supabase.functions.invoke('ai-chat', {
         body: {
@@ -198,13 +262,15 @@ export const useChat = () => {
     
     try {
       const conversation = messages.map(msg => `${msg.role}: ${msg.content}`).join('\n\n');
+      const userContext = await fetchUserFullContext();
       
-      const summaryPrompt = `Based on the following conversation, please generate a concise medical summary including possible diagnoses, recommended next steps, and any key concerns that should be addressed. Format your response as a professional medical note.\n\nCONVERSATION:\n${conversation}`;
+      const summaryPrompt = `Based on the following conversation and user medical context, please generate a concise medical summary including possible diagnoses, recommended next steps, and any key concerns that should be addressed. Format your response as a professional medical note.\n\nCONVERSATION:\n${conversation}\n\nUSER CONTEXT:\n${JSON.stringify(userContext)}`;
       
       const response = await supabase.functions.invoke('ai-chat', {
         body: {
           message: summaryPrompt,
           userId: user?.id,
+          userContext,
           doctorMode: true
         }
       });

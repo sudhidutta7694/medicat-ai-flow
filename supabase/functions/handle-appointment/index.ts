@@ -68,6 +68,20 @@ serve(async (req) => {
     const doctorLastName = appointment.doctor?.profiles?.last_name || 'Unknown'
     const doctorSpecialty = appointment.doctor?.specialty || 'General Medicine'
 
+    // Check if there's a report for this appointment
+    let reportId = null;
+    if (record.status === 'confirmed') {
+      const { data: reportData } = await supabase
+        .from('reports')
+        .select('id')
+        .eq('appointment_id', record.id)
+        .maybeSingle();
+        
+      if (reportData) {
+        reportId = reportData.id;
+      }
+    }
+
     // If appointment is confirmed, create a medical event in the patient's timeline
     if (record.status === 'confirmed') {
       console.log('Adding confirmed appointment to timeline')
@@ -80,7 +94,8 @@ serve(async (req) => {
             date: appointmentDate.toISOString(),
             title: `Appointment with Dr. ${doctorFirstName} ${doctorLastName}`,
             description: `Confirmed appointment with ${doctorSpecialty} specialist. Issue: ${appointment.issue || 'Not specified'}`,
-            type: 'visit',
+            type: 'appointment',
+            report_id: reportId,
           },
         ])
 

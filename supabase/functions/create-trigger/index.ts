@@ -33,6 +33,13 @@ serve(async (req) => {
       throw new Error(`Failed to create database trigger: ${triggerError.message}`)
     }
 
+    // Create trigger for updating report info in timeline
+    const { error: reportTriggerError } = await supabase.rpc('create_report_timeline_update_trigger')
+    
+    if (reportTriggerError) {
+      console.log("Report trigger may already exist or failed:", reportTriggerError.message);
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 

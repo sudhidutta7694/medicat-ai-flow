@@ -21,6 +21,7 @@ export const useProfile = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [profileFetched, setProfileFetched] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -28,6 +29,8 @@ export const useProfile = () => {
       
       try {
         setLoading(true);
+        
+        // First try to get the profile from public.profiles table
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
@@ -35,7 +38,64 @@ export const useProfile = () => {
           .single();
 
         if (error) throw error;
+        
+        // If user just registered and profile data is missing, we need to ensure
+        // that we capture name and email from auth metadata
+        if (!data.first_name || !data.last_name) {
+          const authUserResponse = await supabase.auth.getUser();
+          const authUser = authUserResponse.data.user;
+          
+          if (authUser) {
+            const metadata = authUser.user_metadata;
+            const emailData = authUser.email;
+            
+            // Check if metadata contains name information
+            if (metadata && (metadata.name || metadata.full_name || 
+                            metadata.first_name || metadata.last_name)) {
+              
+              const updateData: Record<string, any> = {};
+              
+              // Handle various metadata formats
+              if (metadata.name) {
+                const nameParts = metadata.name.split(' ');
+                updateData.first_name = nameParts[0];
+                updateData.last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+              } else if (metadata.full_name) {
+                const nameParts = metadata.full_name.split(' ');
+                updateData.first_name = nameParts[0];
+                updateData.last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+              } else {
+                if (metadata.first_name) updateData.first_name = metadata.first_name;
+                if (metadata.last_name) updateData.last_name = metadata.last_name;
+              }
+              
+              // Update email if available
+              if (!data.email && emailData) {
+                updateData.email = emailData;
+              }
+              
+              // Update profile with this information
+              if (Object.keys(updateData).length > 0) {
+                const { data: updatedProfile, error: updateError } = await supabase
+                  .from('profiles')
+                  .update(updateData)
+                  .eq('id', user.id)
+                  .select()
+                  .single();
+                  
+                if (!updateError && updatedProfile) {
+                  setProfile(updatedProfile);
+                  setProfileFetched(true);
+                  setLoading(false);
+                  return;
+                }
+              }
+            }
+          }
+        }
+        
         setProfile(data);
+        setProfileFetched(true);
       } catch (error: any) {
         console.error('Error fetching profile:', error);
       } finally {
@@ -43,8 +103,10 @@ export const useProfile = () => {
       }
     };
 
-    fetchProfile();
-  }, [user]);
+    if (user && !profileFetched) {
+      fetchProfile();
+    }
+  }, [user, profileFetched]);
 
   const updateProfile = async (profileData: Partial<Omit<ProfileData, 'id' | 'created_at' | 'updated_at'>>) => {
     if (!user) return;
