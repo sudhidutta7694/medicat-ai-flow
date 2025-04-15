@@ -10,20 +10,21 @@ schemas = ["public", "storage", "graphql_public"]
 port = 54322
 
 [studio]
+enabled = true
 port = 54323
+api_url = "http://localhost"
 
-[storage]
-enabled = true
-
-[auth]
-enabled = true
-
-[functions]
 [functions.ai-chat]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-report]
 verify_jwt = true
 
 [functions.send-report]
+verify_jwt = true
+
+[functions.handle-appointment]
+verify_jwt = true
+
+[functions.create-trigger]
 verify_jwt = true

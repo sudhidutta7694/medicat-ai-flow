@@ -13,9 +13,9 @@ export interface ChatMessage {
   timestamp?: string;
 }
 
-export const useChat = (overrideDoctorMode?: boolean) => {
+export const useChat = () => {
   const { user, isDoctor } = useAuth();
-  const doctorMode = overrideDoctorMode !== undefined ? overrideDoctorMode : isDoctor;
+  const doctorMode = isDoctor; // Use isDoctor directly - no override option
   
   const [messages, setMessages] = useState<ChatMessage[]>([
     { 

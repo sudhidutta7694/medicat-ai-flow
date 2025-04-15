@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
@@ -13,8 +12,7 @@ import {
   Info, 
   Trash2, 
   FileText, 
-  Stethoscope, 
-  ToggleRight
+  Stethoscope
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -37,8 +35,6 @@ import {
   CardFooter
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import {
   Command,
   CommandEmpty,
@@ -60,7 +56,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// Common medical question suggestions
 const PATIENT_QUESTION_SUGGESTIONS = [
   "What are common symptoms of the flu?",
   "How can I manage my diabetes better?",
@@ -86,7 +81,6 @@ const DOCTOR_QUESTION_SUGGESTIONS = [
 const ChatPage = () => {
   const [message, setMessage] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [doctorMode, setDoctorMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { 
     messages, 
@@ -95,8 +89,9 @@ const ChatPage = () => {
     exportChat, 
     shareWithDoctor, 
     clearChat, 
-    generateDiagnosticSummary 
-  } = useChat(doctorMode);
+    generateDiagnosticSummary,
+    doctorMode
+  } = useChat();
   const { toast } = useToast();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -121,7 +116,6 @@ const ChatPage = () => {
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
-    // Auto-resize textarea
     e.target.style.height = 'auto';
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
@@ -146,8 +140,6 @@ const ChatPage = () => {
       return;
     }
     
-    // This is a simplified version - in a real app, you'd need to handle browser compatibility better
-    // @ts-ignore - SpeechRecognition isn't in TypeScript's lib.dom.d.ts yet
     const recognition = new window.webkitSpeechRecognition();
     recognition.lang = 'en-US';
     recognition.interimResults = false;
@@ -182,14 +174,12 @@ const ChatPage = () => {
   };
 
   const handleToggleDoctorMode = () => {
-    // Show confirmation only when enabling doctor mode
     if (!doctorMode) {
       setDoctorMode(true);
       toast({
         title: "Doctor Mode Enabled",
         description: "Chat is now in clinical professional mode with more detailed medical information."
       });
-      // Reset the chat when switching modes
       clearChat();
     } else {
       setDoctorMode(false);
@@ -197,37 +187,29 @@ const ChatPage = () => {
         title: "Patient Mode Enabled",
         description: "Chat is now in patient-friendly mode."
       });
-      // Reset the chat when switching modes
       clearChat();
     }
   };
 
-  // Scroll to bottom whenever messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Format message content with markdown-like syntax
   const formatMessage = (content: string) => {
-    // Replace ## headings
     let formattedContent = content.replace(/^##\s(.*)$/gm, '<h3 class="text-lg font-bold mt-2 mb-1">$1</h3>');
     
-    // Replace **text** with bold
     formattedContent = formattedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     
-    // Replace * or - lists with proper HTML lists
     formattedContent = formattedContent.replace(
       /(\n\s*(\*|\-)\s.*)+/g, 
       match => `<ul class="list-disc pl-5 my-2">${match.replace(/\n\s*(\*|\-)\s(.*)/g, '<li>$2</li>')}</ul>`
     );
     
-    // Replace URLs with clickable links
     formattedContent = formattedContent.replace(
       /(https?:\/\/[^\s]+)/g,
       '<a href="$1" target="_blank" class="text-blue-600 underline">$1</a>'
     );
     
-    // Replace new lines with <br>
     return formattedContent.replace(/\n/g, '<br>');
   };
 
@@ -252,16 +234,6 @@ const ChatPage = () => {
           </div>
           
           <div className="flex gap-2">
-            <div className="flex items-center space-x-2 mr-2">
-              <Switch
-                id="doctor-mode"
-                checked={doctorMode}
-                onCheckedChange={handleToggleDoctorMode}
-                className={doctorMode ? "bg-indigo-600" : ""}
-              />
-              <Label htmlFor="doctor-mode" className="text-sm">Doctor Mode</Label>
-            </div>
-
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
@@ -372,7 +344,6 @@ const ChatPage = () => {
           </div>
         </div>
         
-        {/* Chat medical info alert */}
         <div className={cn(
           "medical-info mb-4 p-3 rounded-md border",
           doctorMode 
@@ -390,7 +361,6 @@ const ChatPage = () => {
           </p>
         </div>
 
-        {/* Chat messages */}
         <div className="flex-grow overflow-y-auto bg-gray-50 rounded-lg p-4 mb-4">
           <div className="space-y-4">
             {messages.map((msg, index) => (
@@ -447,7 +417,6 @@ const ChatPage = () => {
           </div>
         </div>
 
-        {/* Chat input */}
         <div className="relative">
           {showSuggestions && (
             <div className="absolute bottom-full mb-2 w-full">
