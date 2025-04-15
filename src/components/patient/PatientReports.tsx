@@ -40,6 +40,8 @@ const PatientReports = () => {
           .order('created_at', { ascending: false });
         
         if (error) throw error;
+        
+        console.log('Fetched reports:', data);
         setReports(data || []);
       } catch (error: any) {
         console.error('Error fetching reports:', error);
@@ -90,8 +92,14 @@ const PatientReports = () => {
                   </TableCell>
                   <TableCell>{report.title}</TableCell>
                   <TableCell>
-                    Dr. {report.doctor.profiles.first_name} {report.doctor.profiles.last_name}
-                    <div className="text-xs text-gray-500">{report.doctor.specialty}</div>
+                    {report.doctor?.profiles ? (
+                      <>
+                        Dr. {report.doctor.profiles.first_name || 'Unknown'} {report.doctor.profiles.last_name || ''}
+                        <div className="text-xs text-gray-500">{report.doctor.specialty || 'General Medicine'}</div>
+                      </>
+                    ) : (
+                      'Unknown Doctor'
+                    )}
                   </TableCell>
                   <TableCell>
                     <Dialog>

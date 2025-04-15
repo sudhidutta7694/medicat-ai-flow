@@ -8,7 +8,7 @@ export type TimelineItemType = {
   date: string;
   title: string;
   description: string;
-  type: 'prescription' | 'lab' | 'visit' | 'medicine' | 'alert';
+  type: 'prescription' | 'lab' | 'visit' | 'medicine' | 'alert' | 'appointment';
 };
 
 interface TimelineItemProps {
@@ -24,6 +24,7 @@ const TimelineItem: React.FC<TimelineItemProps> = ({ item, isLast = false }) => 
       case 'lab':
         return <FilePlus className="h-5 w-5 text-medigreen-600" />;
       case 'visit':
+      case 'appointment':
         return <Calendar className="h-5 w-5 text-mediblue-500" />;
       case 'medicine':
         return <Pill className="h-5 w-5 text-secondary" />;
@@ -41,6 +42,8 @@ const TimelineItem: React.FC<TimelineItemProps> = ({ item, isLast = false }) => 
       case 'lab':
         return 'bg-medigreen-100';
       case 'visit':
+        return 'bg-mediblue-50';
+      case 'appointment':
         return 'bg-mediblue-50';
       case 'medicine':
         return 'bg-secondary/20';
@@ -77,7 +80,7 @@ const TimelineItem: React.FC<TimelineItemProps> = ({ item, isLast = false }) => 
             getBgColor(), 
             item.type === 'alert' ? 'text-medired-700' : 'text-gray-700'
           )}>
-            {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+            {item.type === 'appointment' ? 'Appointment' : item.type.charAt(0).toUpperCase() + item.type.slice(1)}
           </span>
         </div>
       </div>

@@ -19,14 +19,14 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Create a database function to handle appointment status changes
+    // Create database function for appointment webhooks
     const { error: funcError } = await supabase.rpc('create_appointment_webhook_function')
     
     if (funcError) {
       throw new Error(`Failed to create database function: ${funcError.message}`)
     }
     
-    // Create a database trigger to fire when appointment status changes
+    // Create database trigger to call webhook when appointment status changes
     const { error: triggerError } = await supabase.rpc('create_appointment_webhook_trigger')
     
     if (triggerError) {

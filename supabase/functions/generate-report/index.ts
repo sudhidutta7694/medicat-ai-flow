@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.43.0";
 
 const TOGETHER_API_KEY = Deno.env.get("TOGETHER_API_KEY") || "4219e7d7a6bb031daa2be50d0fd41e8e698ec82ca1c8fb1ae1e03e47fb275167";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,10 +28,10 @@ serve(async (req: Request) => {
   try {
     console.log("Processing report generation request");
     
-    // Initialize Supabase client
+    // Initialize Supabase client with service role key for full access
     const supabaseClient = createClient(
       SUPABASE_URL || "",
-      SUPABASE_ANON_KEY || ""
+      SUPABASE_SERVICE_KEY || ""
     );
     
     const body = await req.json();
@@ -44,7 +44,7 @@ serve(async (req: Request) => {
     }
 
     console.log("Fetching patient data");
-    // Get patient and doctor information
+    // Get patient information
     const { data: patientData, error: patientError } = await supabaseClient
       .from('profiles')
       .select('*')
@@ -57,6 +57,7 @@ serve(async (req: Request) => {
     }
     
     console.log("Fetching doctor data");
+    // Get doctor information
     const { data: doctorData, error: doctorError } = await supabaseClient
       .from('profiles')
       .select('*')
@@ -68,7 +69,7 @@ serve(async (req: Request) => {
       throw doctorError;
     }
     
-    // Get specialty data
+    // Get doctor specialty data
     console.log("Fetching doctor specialty data");
     const { data: doctorSpecialtyData, error: specialtyError } = await supabaseClient
       .from('doctors')
@@ -101,6 +102,16 @@ serve(async (req: Request) => {
       console.error("Error fetching conditions:", conditionsError);
     }
 
+    console.log("Fetching patient allergies");
+    const { data: allergies, error: allergiesError } = await supabaseClient
+      .from('allergies')
+      .select('*')
+      .eq('user_id', patientId);
+    
+    if (allergiesError) {
+      console.error("Error fetching allergies:", allergiesError);
+    }
+
     // Generate visit summary from transcription using Together AI
     const doctorName = doctorData 
       ? `Dr. ${doctorData.first_name || ''} ${doctorData.last_name || ''}` 
@@ -116,15 +127,16 @@ Patient Information:
 - Name: ${patientData?.first_name || ''} ${patientData?.last_name || ''}
 - Known Conditions: ${conditions?.map(c => c.name).join(', ') || 'None reported'}
 - Current Medications: ${medications?.map(m => m.name).join(', ') || 'None reported'}
+- Allergies: ${allergies?.map(a => a.name).join(', ') || 'None reported'}
 
 Doctor:
 - Name: ${doctorName}
 - Specialty: ${doctorSpecialty}
 
-Patient Notes: ${patientNotes}
+Patient Notes: ${patientNotes || 'None provided'}
 
 Consultation Transcription:
-${transcription}
+${transcription || 'No transcription provided'}
 
 Format your response as a medical visit summary.
 `;
@@ -164,6 +176,7 @@ Patient Information:
 - Name: ${patientData?.first_name || ''} ${patientData?.last_name || ''}
 - Known Conditions: ${conditions?.map(c => c.name).join(', ') || 'None reported'}
 - Current Medications: ${medications?.map(m => m.name).join(', ') || 'None reported'}
+- Allergies: ${allergies?.map(a => a.name).join(', ') || 'None reported'}
 
 Visit Summary:
 ${visitSummary}

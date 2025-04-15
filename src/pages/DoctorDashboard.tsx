@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
@@ -7,16 +8,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useForm } from 'react-hook-form';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { CheckCircle2, XCircle, Calendar, FilePlus, Clock, Bell, Users } from 'lucide-react';
+import { useProfile } from '@/hooks/use-profile';
+import { CheckCircle2, XCircle, Calendar, FilePlus, Clock, Bell, Users, FileText, Download, Info } from 'lucide-react';
 
 const DoctorDashboard = () => {
   const { user } = useAuth();
+  const { getPatientMedicalData } = useProfile();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -27,13 +28,9 @@ const DoctorDashboard = () => {
   const [transcriptionText, setTranscriptionText] = useState('');
   const [patientNotes, setPatientNotes] = useState('');
   const [reportGenerating, setReportGenerating] = useState(false);
-
-  const reportForm = useForm({
-    defaultValues: {
-      notes: '',
-      transcription: '',
-    },
-  });
+  const [patientMedicalData, setPatientMedicalData] = useState<any>(null);
+  const [loadingPatientData, setLoadingPatientData] = useState(false);
+  const [viewingPatientId, setViewingPatientId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDoctorData = async () => {
@@ -44,65 +41,60 @@ const DoctorDashboard = () => {
         
         const { data: appointmentsData, error: appointmentsError } = await supabase
           .from('appointments')
-          .select('*')
+          .select(`
+            *,
+            patient:patient_id (
+              id,
+              first_name,
+              last_name,
+              email,
+              phone,
+              date_of_birth,
+              gender
+            )
+          `)
           .eq('doctor_id', user.id);
         
         if (appointmentsError) throw appointmentsError;
         
-        const patientIds = [...new Set(appointmentsData.map(apt => apt.patient_id))];
-        
-        const { data: patientProfiles, error: patientError } = await supabase
-          .from('profiles')
-          .select('*')
-          .in('id', patientIds);
-        
-        if (patientError) throw patientError;
-        
-        const appointmentsWithPatients = appointmentsData.map(appointment => {
-          const patientProfile = patientProfiles.find(p => p.id === appointment.patient_id);
-          return {
-            ...appointment,
-            profiles: patientProfile || { 
-              first_name: 'Unknown', 
-              last_name: 'Unknown',
-              email: 'unknown@example.com',
-              phone: 'N/A',
-              date_of_birth: null
-            }
-          };
-        });
-        
         const now = new Date();
-        const upcoming = appointmentsWithPatients
+        const upcoming = appointmentsData
           .filter(apt => apt.status === 'confirmed' && new Date(apt.scheduled_at) > now)
           .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
         
-        const pending = appointmentsWithPatients.filter(apt => apt.status === 'pending');
+        const pending = appointmentsData.filter(apt => apt.status === 'pending');
         
         setAppointments(upcoming);
         setPendingAppointments(pending);
 
-        setPatients(patientProfiles);
+        // Extract unique patient IDs
+        const patientIds = [...new Set(appointmentsData.map(apt => apt.patient_id))];
+        
+        if (patientIds.length > 0) {
+          const { data: patientProfiles, error: patientError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', patientIds);
+          
+          if (patientError) throw patientError;
+          setPatients(patientProfiles || []);
+        }
         
         const { data: reportsData, error: reportsError } = await supabase
           .from('reports')
-          .select('*')
+          .select(`
+            *,
+            patient:patient_id (
+              id,
+              first_name,
+              last_name
+            )
+          `)
           .eq('doctor_id', user.id)
           .order('created_at', { ascending: false });
         
         if (reportsError) throw reportsError;
-        
-        const reportsWithPatients = await Promise.all(
-          reportsData.map(async (report) => {
-            const patientProfile = patientProfiles.find(p => p.id === report.patient_id);
-            return {
-              ...report,
-              profiles: patientProfile || { first_name: 'Unknown', last_name: 'Unknown' }
-            };
-          })
-        );
-        
-        setReports(reportsWithPatients);
+        setReports(reportsData || []);
       } catch (error: any) {
         console.error('Error fetching doctor data:', error);
         toast({
@@ -189,7 +181,7 @@ const DoctorDashboard = () => {
       if (data && data.report) {
         setReports(prev => [{
           ...data.report,
-          profiles: appointment.profiles,
+          patient: appointment.patient,
           created_at: new Date().toISOString()
         }, ...prev]);
 
@@ -252,6 +244,31 @@ const DoctorDashboard = () => {
         description: error.message || `Could not send the report via ${method}`,
         variant: 'destructive',
       });
+    }
+  };
+
+  const viewPatientMedicalData = async (patientId: string) => {
+    if (viewingPatientId === patientId && patientMedicalData) {
+      // Already loaded, just show the dialog
+      return;
+    }
+    
+    setLoadingPatientData(true);
+    setViewingPatientId(patientId);
+    
+    try {
+      const data = await getPatientMedicalData(patientId);
+      setPatientMedicalData(data);
+    } catch (error) {
+      console.error('Error fetching patient medical data:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not load patient medical data',
+        variant: 'destructive',
+      });
+      setPatientMedicalData(null);
+    } finally {
+      setLoadingPatientData(false);
     }
   };
 
@@ -365,12 +382,110 @@ const DoctorDashboard = () => {
                         <TableRow key={appointment.id}>
                           <TableCell>
                             <div className="font-medium">
-                              {appointment.profiles?.first_name} {appointment.profiles?.last_name}
+                              {appointment.patient?.first_name || 'Unknown'} {appointment.patient?.last_name || ''}
                             </div>
                           </TableCell>
                           <TableCell>{formatDate(appointment.scheduled_at)}</TableCell>
                           <TableCell>{appointment.issue || 'No issue specified'}</TableCell>
                           <TableCell className="flex space-x-2">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button size="sm" variant="outline" onClick={() => viewPatientMedicalData(appointment.patient_id)}>
+                                  <Info className="h-4 w-4 mr-1" /> Medical Info
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-3xl">
+                                <DialogHeader>
+                                  <DialogTitle>Patient Medical Information</DialogTitle>
+                                </DialogHeader>
+                                {loadingPatientData ? (
+                                  <div className="flex justify-center py-4">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-mediblue-600"></div>
+                                  </div>
+                                ) : patientMedicalData ? (
+                                  <div className="space-y-4">
+                                    <div>
+                                      <h3 className="text-lg font-medium mb-2">Basic Information</h3>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <p className="text-sm text-gray-500">Name</p>
+                                          <p>{patientMedicalData.profile?.first_name} {patientMedicalData.profile?.last_name}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm text-gray-500">Date of Birth</p>
+                                          <p>{patientMedicalData.profile?.date_of_birth ? new Date(patientMedicalData.profile.date_of_birth).toLocaleDateString() : 'Not provided'}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm text-gray-500">Email</p>
+                                          <p>{patientMedicalData.profile?.email || 'Not provided'}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm text-gray-500">Phone</p>
+                                          <p>{patientMedicalData.profile?.phone || 'Not provided'}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    <div>
+                                      <h3 className="text-lg font-medium mb-2">Medical Conditions</h3>
+                                      {patientMedicalData.conditions && patientMedicalData.conditions.length > 0 ? (
+                                        <ul className="list-disc pl-5 space-y-1">
+                                          {patientMedicalData.conditions.map((condition: any) => (
+                                            <li key={condition.id}>
+                                              <span className="font-medium">{condition.name}</span>
+                                              {condition.diagnosed_date && (
+                                                <span className="text-gray-500"> (diagnosed: {new Date(condition.diagnosed_date).toLocaleDateString()})</span>
+                                              )}
+                                              {condition.notes && <p className="text-sm text-gray-600">{condition.notes}</p>}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      ) : (
+                                        <p className="text-gray-500">No medical conditions recorded</p>
+                                      )}
+                                    </div>
+                                    
+                                    <div>
+                                      <h3 className="text-lg font-medium mb-2">Current Medications</h3>
+                                      {patientMedicalData.medications && patientMedicalData.medications.length > 0 ? (
+                                        <ul className="list-disc pl-5 space-y-1">
+                                          {patientMedicalData.medications.map((medication: any) => (
+                                            <li key={medication.id}>
+                                              <span className="font-medium">{medication.name}</span>
+                                              {medication.dosage && <span> ({medication.dosage})</span>}
+                                              {medication.frequency && <p className="text-sm">Frequency: {medication.frequency}</p>}
+                                              {medication.instructions && <p className="text-sm text-gray-600">{medication.instructions}</p>}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      ) : (
+                                        <p className="text-gray-500">No medications recorded</p>
+                                      )}
+                                    </div>
+                                    
+                                    <div>
+                                      <h3 className="text-lg font-medium mb-2">Allergies</h3>
+                                      {patientMedicalData.allergies && patientMedicalData.allergies.length > 0 ? (
+                                        <ul className="list-disc pl-5 space-y-1">
+                                          {patientMedicalData.allergies.map((allergy: any) => (
+                                            <li key={allergy.id}>
+                                              <span className="font-medium">{allergy.name}</span>
+                                              {allergy.severity && <span className="ml-2 text-sm">(Severity: {allergy.severity})</span>}
+                                              {allergy.reaction && <p className="text-sm text-gray-600">Reaction: {allergy.reaction}</p>}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      ) : (
+                                        <p className="text-gray-500">No allergies recorded</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-center text-gray-500 py-4">Could not load patient medical data</p>
+                                )}
+                              </DialogContent>
+                            </Dialog>
+                            
                             <Dialog>
                               <DialogTrigger asChild>
                                 <Button size="sm">Generate Report</Button>
@@ -379,13 +494,13 @@ const DoctorDashboard = () => {
                                 <DialogHeader>
                                   <DialogTitle>Generate Visit Report</DialogTitle>
                                   <DialogDescription>
-                                    Generate a report for the visit with {appointment.profiles?.first_name} {appointment.profiles?.last_name}
+                                    Generate a report for the visit with {appointment.patient?.first_name || 'Unknown'} {appointment.patient?.last_name || ''}
                                   </DialogDescription>
                                 </DialogHeader>
                                 
                                 <div className="grid gap-4">
                                   <div className="space-y-2">
-                                    <FormLabel>Voice Transcription</FormLabel>
+                                    <label className="text-sm font-medium text-gray-700">Voice Transcription</label>
                                     <Textarea 
                                       placeholder="Paste or type the consultation transcription here" 
                                       value={transcriptionText}
@@ -398,7 +513,7 @@ const DoctorDashboard = () => {
                                   </div>
                                   
                                   <div className="space-y-2">
-                                    <FormLabel>Patient Notes</FormLabel>
+                                    <label className="text-sm font-medium text-gray-700">Patient Notes</label>
                                     <Textarea 
                                       placeholder="Add notes about patient symptoms, concerns, or observations" 
                                       value={patientNotes}
@@ -457,7 +572,7 @@ const DoctorDashboard = () => {
                         <TableRow key={appointment.id}>
                           <TableCell>
                             <div className="font-medium">
-                              {appointment.profiles?.first_name} {appointment.profiles?.last_name}
+                              {appointment.patient?.first_name || 'Unknown'} {appointment.patient?.last_name || ''}
                             </div>
                           </TableCell>
                           <TableCell>{formatDate(appointment.scheduled_at)}</TableCell>
@@ -511,14 +626,24 @@ const DoctorDashboard = () => {
                       {patients.map((patient) => (
                         <TableRow key={patient.id}>
                           <TableCell>
-                            <div className="font-medium">{patient.first_name} {patient.last_name}</div>
+                            <div className="font-medium">{patient.first_name || 'Unknown'} {patient.last_name || ''}</div>
                           </TableCell>
-                          <TableCell>{patient.email}</TableCell>
+                          <TableCell>{patient.email || 'N/A'}</TableCell>
                           <TableCell>{patient.phone || 'N/A'}</TableCell>
                           <TableCell>
                             {patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString() : 'N/A'}
                           </TableCell>
                           <TableCell className="flex space-x-2">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button size="sm" variant="outline" onClick={() => viewPatientMedicalData(patient.id)}>
+                                  <Info className="h-4 w-4 mr-1" /> Medical Info
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-3xl">
+                                {/* Dialog content similar to the one above */}
+                              </DialogContent>
+                            </Dialog>
                             <Button 
                               size="sm" 
                               variant="outline"
@@ -571,7 +696,7 @@ const DoctorDashboard = () => {
                             <div className="font-medium">{report.title}</div>
                           </TableCell>
                           <TableCell>
-                            {report.profiles?.first_name} {report.profiles?.last_name}
+                            {report.patient?.first_name || 'Unknown'} {report.patient?.last_name || ''}
                           </TableCell>
                           <TableCell>
                             {new Date(report.created_at).toLocaleDateString()}

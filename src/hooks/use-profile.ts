@@ -88,5 +88,70 @@ export const useProfile = () => {
     }
   };
 
-  return { profile, loading, updateProfile };
+  // Get a profile by ID (useful for doctor looking at patient info)
+  const getProfileById = async (profileId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', profileId)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error: any) {
+      console.error('Error fetching profile by ID:', error);
+      return null;
+    }
+  };
+
+  // Get patient medical data (for doctors to view)
+  const getPatientMedicalData = async (patientId: string) => {
+    try {
+      // Get patient profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', patientId)
+        .single();
+        
+      if (profileError) throw profileError;
+      
+      // Get patient medications
+      const { data: medications, error: medsError } = await supabase
+        .from('medications')
+        .select('*')
+        .eq('user_id', patientId);
+        
+      if (medsError) throw medsError;
+      
+      // Get patient conditions
+      const { data: conditions, error: condsError } = await supabase
+        .from('medical_conditions')
+        .select('*')
+        .eq('user_id', patientId);
+        
+      if (condsError) throw condsError;
+      
+      // Get patient allergies
+      const { data: allergies, error: allergiesError } = await supabase
+        .from('allergies')
+        .select('*')
+        .eq('user_id', patientId);
+        
+      if (allergiesError) throw allergiesError;
+      
+      return {
+        profile: profileData,
+        medications: medications || [],
+        conditions: conditions || [],
+        allergies: allergies || []
+      };
+    } catch (error: any) {
+      console.error('Error fetching patient medical data:', error);
+      return null;
+    }
+  };
+
+  return { profile, loading, updateProfile, getProfileById, getPatientMedicalData };
 };

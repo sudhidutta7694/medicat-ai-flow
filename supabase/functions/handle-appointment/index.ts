@@ -21,15 +21,15 @@ serve(async (req) => {
 
     const { record, type } = await req.json()
 
-    // We only care about appointment status changes to "confirmed"
-    if (type !== 'UPDATE' || record.status !== 'confirmed') {
+    // We only care about appointment status changes
+    if (type !== 'UPDATE') {
       return new Response(
-        JSON.stringify({ message: 'No action needed' }),
+        JSON.stringify({ message: 'No action needed for non-update events' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('Processing confirmed appointment:', record)
+    console.log('Processing appointment update:', record)
 
     // Fetch more details about the appointment
     const { data: appointment, error: appointmentError } = await supabase
@@ -37,11 +37,17 @@ serve(async (req) => {
       .select(`
         *,
         doctor:doctor_id (
+          id,
           specialty,
           profiles:id (
             first_name,
             last_name
           )
+        ),
+        patient:patient_id (
+          id,
+          first_name,
+          last_name
         )
       `)
       .eq('id', record.id)
@@ -51,31 +57,41 @@ serve(async (req) => {
       throw new Error(`Error fetching appointment details: ${appointmentError.message}`)
     }
 
-    // Create a medical event in the patient's timeline
+    if (!appointment) {
+      throw new Error(`Appointment not found with ID: ${record.id}`)
+    }
+
+    console.log('Fetched appointment details:', appointment)
+
     const appointmentDate = new Date(appointment.scheduled_at)
     const doctorFirstName = appointment.doctor?.profiles?.first_name || 'Unknown'
-    const doctorLastName = appointment.doctor?.profiles?.last_name || ''
-    const doctorSpecialty = appointment.doctor?.specialty || 'Unknown'
+    const doctorLastName = appointment.doctor?.profiles?.last_name || 'Unknown'
+    const doctorSpecialty = appointment.doctor?.specialty || 'General Medicine'
 
-    const { error: timelineError } = await supabase
-      .from('medical_events')
-      .insert([
-        {
-          user_id: appointment.patient_id,
-          date: appointmentDate.toISOString(),
-          title: `Appointment with Dr. ${doctorFirstName} ${doctorLastName}`,
-          description: `Confirmed appointment with ${doctorSpecialty} specialist. Issue: ${appointment.issue || 'Not specified'}`,
-          type: 'visit',
-        },
-      ])
+    // If appointment is confirmed, create a medical event in the patient's timeline
+    if (record.status === 'confirmed') {
+      console.log('Adding confirmed appointment to timeline')
 
-    if (timelineError) {
-      throw new Error(`Error creating timeline event: ${timelineError.message}`)
+      const { error: timelineError } = await supabase
+        .from('medical_events')
+        .insert([
+          {
+            user_id: appointment.patient_id,
+            date: appointmentDate.toISOString(),
+            title: `Appointment with Dr. ${doctorFirstName} ${doctorLastName}`,
+            description: `Confirmed appointment with ${doctorSpecialty} specialist. Issue: ${appointment.issue || 'Not specified'}`,
+            type: 'visit',
+          },
+        ])
+
+      if (timelineError) {
+        throw new Error(`Error creating timeline event: ${timelineError.message}`)
+      }
     }
 
     return new Response(
       JSON.stringify({ 
-        message: 'Appointment confirmed and added to patient timeline', 
+        message: `Appointment ${record.status} and processed successfully`, 
         success: true 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
